@@ -18,6 +18,10 @@
 
 #define FALSE 0
 #define TRUE 1
+#define F 0x7E
+#define A 0x03
+#define C_UA 0x07
+#define BCC A ^ C_UA
 
 #define BUF_SIZE 256
 
@@ -76,7 +80,7 @@ int main(int argc, char *argv[])
     // tcflush() discards data written to the object referred to
     // by fd but not transmitted, or data received but not read,
     // depending on the value of queue_selector:
-    //   TCIFLUSH - flushes data received but not read.
+    // TCIFLUSH - flushes data received but not read.
     tcflush(fd, TCIOFLUSH);
 
     // Set new port settings
@@ -91,17 +95,25 @@ int main(int argc, char *argv[])
     // Loop for input
     unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
 
+    unsigned char test[5] = {F, A, C_UA, BCC, F};
+    unsigned char codes[100];
+    int bytes = read(fd, codes, 5);
+    for (int i = 0; i < 5; i++)
+    {
+        printf("%d code read\n", codes[i]);
+    }
+    /*
     while (STOP == FALSE)
     {
-        // Returns after 5 chars have been input
-        int bytes = read(fd, buf, BUF_SIZE);
-        buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+    // Returns after 5 chars have been input
+    int bytes = read(fd, buf, BUF_SIZE);
+    buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
 
-        printf(":%s:%d\n", buf, bytes);
-        if (buf[0] == '\0')
-            STOP = TRUE;
+    printf(":%s:%d\n", buf, bytes);
+    if (buf[0] == '\0')
+    STOP = TRUE;
     }
-
+    */
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
 
