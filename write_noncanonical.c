@@ -19,6 +19,10 @@
 
 #define FALSE 0
 #define TRUE 1
+#define F 0x7E
+#define A 0x03
+#define C_SET 0x03
+#define BCC A^C_SET
 
 #define BUF_SIZE 256
 
@@ -91,9 +95,16 @@ int main(int argc, char *argv[])
     printf("New termios structure set\n");
 
     // Create string to send
+
     unsigned char buf[BUF_SIZE] = {0};
+    unsigned char codes[100] = {F,A,C_SET,BCC,F};
     bool stop = true;
-    unsigned char str[BUF_SIZE];
+
+    int bytes = write(fd, codes, 5);
+    printf("%d bytes written\n", bytes);
+  
+    
+    /*unsigned char str[BUF_SIZE];
     while(stop){
         if(gets(str)!=NULL){
             for(int i=0; i< strlen(str) +1;i++){
@@ -117,7 +128,9 @@ int main(int argc, char *argv[])
         else {
             stop=false;
         }
-    }
+    }*/
+
+    sleep(1);
 
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
