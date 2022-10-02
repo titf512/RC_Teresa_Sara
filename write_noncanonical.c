@@ -11,6 +11,13 @@
 #include <termios.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <unistd.h>
+#include <signal.h>
+#include <stdio.h>
+
+// Alarm
+#define FALSE 0
+#define TRUE 1
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -19,10 +26,27 @@
 
 #define FALSE 0
 #define TRUE 1
+#define F 0x7E
+#define A 0x03
+#define C_SET 0x03
+#define C_UA 0x07
+#define BCC_UA A ^ C_UA
+#define BCC A ^ C_SET
 
 #define BUF_SIZE 256
 
 volatile int STOP = FALSE;
+int alarmEnabled = FALSE;
+int alarmCount = 0;
+
+// Alarm function handler
+void alarmHandler(int signal)
+{
+    alarmEnabled = FALSE;
+    alarmCount++;
+
+    printf("Alarm #%d\n", alarmCount);
+}
 
 int main(int argc, char *argv[])
 {
@@ -91,33 +115,35 @@ int main(int argc, char *argv[])
     printf("New termios structure set\n");
 
     // Create string to send
+
     unsigned char buf[BUF_SIZE] = {0};
+    unsigned char codes[100] = {F, A, C_SET, BCC, F};
+    unsigned char answer[100];
     bool stop = true;
-    unsigned char str[BUF_SIZE];
-    while(stop){
-        if(gets(str)!=NULL){
-            for(int i=0; i< strlen(str) +1;i++){
-                if(buf[i]!='\0'){
-                    stop=false;
-                    break;
-                }
-                buf[i]=str[i];
-            }    
-            // In non-canonical mode, '\n' does not end the writing.
-            // Test this condition by placing a '\n' in the middle of the buffer.
-            // The whole buffer must be sent even with the '\n'.
-            //buf[5] = '\n';
 
-            int bytes = write(fd, buf, BUF_SIZE);
-            printf("%d bytes written\n", bytes);
+    // Set alarm function handler
+    (void)signal(SIGALRM, alarmHandler);
 
-            // Wait until all bytes have been written to the serial port
-            sleep(1);
-        }
-        else {
-            stop=false;
+    while (alarmCount < 3)
+    {
+        int bytes = write(fd, codes, 5);
+        printf("%d bytes written\n", bytes);
+        alarmCount++;
+
+        if (alarmEnabled == FALSE)
+        {
+            alarm(3); // Set alarm to be triggered in 3s
+            int bytes = read(fd, answer, 5);
+            alarmEnabled = TRUE;
+            if ((answer[0] == F) && (answer[1] == A) && (answer[2] == C_UA) && (answer[3] == BCC_UA) && (answer[4] == F))
+            {
+                printf("DEU");
+                break;
+            }
         }
     }
+
+    sleep(1);
 
     // Restore the old port settings
     if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
