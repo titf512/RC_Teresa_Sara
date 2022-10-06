@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 // Baudrate settings are defined in <asm/termbits.h>, which is
 // included by <termios.h>
@@ -20,8 +21,10 @@
 #define TRUE 1
 #define F 0x7E
 #define A 0x03
+#define C_SET 0x03
 #define C_UA 0x07
 #define BCC A ^ C_UA
+#define BCC_SET  A ^ C_SET
 
 #define BUF_SIZE 256
 
@@ -91,29 +94,55 @@ int main(int argc, char *argv[])
     }
 
     printf("New termios structure set\n");
+   
 
     // Loop for input
     unsigned char buf[BUF_SIZE + 1] = {0}; // +1: Save space for the final '\0' char
 
     unsigned char test[5] = {F, A, C_UA, BCC, F};
     unsigned char codes[100];
-    int bytes = read(fd, codes, 5);
-    for (int i = 0; i < 5; i++)
-    {
-        printf("%d code read\n", codes[i]);
-    }
-    /*
-    while (STOP == FALSE)
-    {
-    // Returns after 5 chars have been input
-    int bytes = read(fd, buf, BUF_SIZE);
-    buf[bytes] = '\0'; // Set end of string to '\0', so we can printf
+    unsigned char flags[5];
 
-    printf(":%s:%d\n", buf, bytes);
-    if (buf[0] == '\0')
-    STOP = TRUE;
+    int counter = 0;
+    bool not_read = true;
+
+    while (not_read){
+        int bytes = read(fd, codes, 1);
+        printf("%d\n", codes[0]);
+
+        if (codes[0] == F && counter==0)
+        {
+            flags[0] = F;
+            counter++;
+        }
+        else if (codes[0] == A && flags[0]==F && counter==1){
+            flags[1] = A;
+            counter++;
+        }
+        else if (codes[0] == C_SET && flags[1] == A && counter == 2)
+        {
+            flags[2] = C_SET;
+            counter++;
+        }
+        else if (codes[0] == BCC_SET && flags[2] == C_SET && counter == 3)
+        {
+           
+            flags[3] = BCC_SET;
+            not_read = false;
+            printf("%d\n", codes[0]);
+            break;
+        }
+        else
+        {
+            memset(flags, 0, 5);
+            counter = 0;
+        }
     }
-    */
+
+   
+
+    write(fd, test, 5);
+
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide
 
