@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
     // tcflush() discards data written to the object referred to
     // by fd but not transmitted, or data received but not read,
     // depending on the value of queue_selector:
-    //   TCIFLUSH - flushes data received but not read.
+    // TCIFLUSH - flushes data received but not read.
     tcflush(fd, TCIOFLUSH);
 
     // Set new port settings
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
     // Set alarm function handler
     (void)signal(SIGALRM, alarmHandler);
 
-    while (alarmCount < 3)
+    while (alarmCount < 3 && alarmEnabled == FALSE)
     {
         int bytes = write(fd, codes, 5);
         printf("%d bytes written\n", bytes);
@@ -133,13 +133,45 @@ int main(int argc, char *argv[])
         if (alarmEnabled == FALSE)
         {
             alarm(3); // Set alarm to be triggered in 3s
-            int bytes = read(fd, answer, 5);
-            alarmEnabled = TRUE;
-            if ((answer[0] == F) && (answer[1] == A) && (answer[2] == C_UA) && (answer[3] == BCC_UA) && (answer[4] == F))
+            unsigned char flags[5];
+            int counter = 0;
+            bool not_read = true;
+
+            while (not_read)
             {
-                printf("DEU");
-                break;
+                int bytes = read(fd, answer, 1);
+                printf("%d\n", answer[0]);
+
+                if (answer[0] == F && counter == 0)
+                {
+                    flags[0] = F;
+                    counter++;
+                }
+                else if (answer[0] == A && flags[0] == F && counter == 1)
+                {
+                    flags[1] = A;
+                    counter++;
+                }
+                else if (answer[0] == C_UA && flags[1] == A && counter == 2)
+                {
+                    flags[2] = C_UA;
+                    counter++;
+                }
+                else if (answer[0] == BCC_UA && flags[2] == C_UA && counter == 3)
+                {
+                    flags[3] = BCC_UA;
+                    not_read = false;
+                    int bytes = read(fd, answer, 1);
+                    printf("%d\n", answer[0]);
+                    break;
+                }
+                else
+                {
+                    memset(flags, 0, 5);
+                    counter = 0;
+                }
             }
+            alarmEnabled = TRUE;
         }
     }
 
