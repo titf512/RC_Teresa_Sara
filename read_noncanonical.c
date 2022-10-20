@@ -25,6 +25,10 @@
 #define C_UA 0x07
 #define BCC A ^ C_UA
 #define BCC_SET  A ^ C_SET
+#define C_0 0x00
+#define C_1 0x40
+#define RR_0 0x05
+#define RR_1 0x85
 
 #define BUF_SIZE 256
 
@@ -139,9 +143,67 @@ int main(int argc, char *argv[])
         }
     }
 
-   
-
+    int c = 1;
     write(fd, test, 5);
+
+    while (not_read)
+    {
+        int bytes = read(fd, codes, 1);
+        printf("%d\n", codes[0]);
+
+        if (codes[0] == F && counter == 0)
+        {
+            flags[0] = F;
+            counter++;
+        }
+        else if (codes[0] == A && flags[0] == F && counter == 1)
+        {
+            flags[1] = A;
+            counter++;
+        }
+        else if (codes[0] == C_0 && flags[1] == A && counter == 2 && c == 1)
+        {
+            flags[2] = C_0;
+            c = 0;
+            counter++;
+        }
+        else if (codes[0] == C_1 && flags[1] == A && counter == 2 && c == 0)
+        {
+            flags[2] = C_1;
+            c = 1;
+            counter++;
+        }
+        else if ((codes[0] == C_0 ^ A) && flags[2] == C_0 && counter == 3 && c == 0)
+        {
+            flags[3] = C_0 ^ A;
+            counter++;
+        }
+        else if ((codes[0] == C_1 ^ A) && flags[2] == C_1 && counter == 3 && c == 1)
+        {
+            flags[3] = C_1 ^ A;
+            counter++;
+        }
+        else if (flags[3] == C_1 ^ A && counter == 4 && c == 1)
+        {
+            char bcc_2 = codes[0];
+            counter++;
+            while (true){
+                read(fd, codes, 1);
+
+                if (codes[0] == bcc_2){
+                    read(fd, codes, 1);
+                    if (codes[0] == F) break;
+                }
+
+                bcc_2 ^= codes[0];
+            }
+        }
+        else
+        {
+            memset(flags, 0, 5);
+            counter = 0;
+        }
+    }
 
     // The while() cycle should be changed in order to respect the specifications
     // of the protocol indicated in the Lab guide

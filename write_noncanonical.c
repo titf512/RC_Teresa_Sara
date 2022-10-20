@@ -34,6 +34,8 @@
 #define BCC A ^ C_SET
 #define C_0 0x00
 #define C_1 0x40
+#define RR_0 0x05
+#define RR_1 0x85
 
 #define BUF_SIZE 256
 
@@ -54,15 +56,16 @@ int bcc_2(int arr[], int n)
 {
     // Resultant variable
     int xor_arr = 0;
- 
+
     // Iterating through every element in
     // the array
-    for (int i = 0; i < n; i++) {
- 
+    for (int i = 0; i < n; i++)
+    {
+
         // Find XOR with the result
         xor_arr = xor_arr ^ arr[i];
     }
- 
+
     // Return the XOR
     return xor_arr;
 }
@@ -139,7 +142,7 @@ int main(int argc, char *argv[])
     unsigned char codes[100] = {F, A, C_SET, BCC, F};
     unsigned char answer[100];
     bool stop = true;
-    int data[100] = {0x00,0x01};
+    int data[100] = {0x00, 0x01};
     int c = 0;
 
     // Set alarm function handler
@@ -201,12 +204,12 @@ int main(int argc, char *argv[])
 
     while (alarmCount < 3 && alarmEnabled == FALSE)
     {
-        unsigned char dataFlags[100] = {F, A, C_0, A^ C_0};
+        unsigned char dataFlags[100] = {F, A, C_0, A ^ C_0};
         int bytes = write(fd, dataFlags, 4);
         write(fd, data, 5);
         dataFlags[0] = bcc_2(data, 5);
         dataFlags[1] = F;
-        write(fd,dataFlags,2);
+        write(fd, dataFlags, 2);
         alarmCount++;
 
         if (alarmEnabled == FALSE)
@@ -231,29 +234,29 @@ int main(int argc, char *argv[])
                     flags[1] = A;
                     counter++;
                 }
-                else if (answer[0] == C_0 && flags[1] == A && counter == 2  && c==1)
+                else if (answer[0] == RR_0 && flags[1] == A && counter == 2 && c == 1)
                 {
-                    flags[2] = C_0;
-                    c=0;
+                    flags[2] = RR_0;
+                    c = 0;
                     counter++;
                 }
-                else if (answer[0] == C_1 && flags[1] == A && counter == 2 && c==0)
+                else if (answer[0] == RR_1 && flags[1] == A && counter == 2 && c == 0)
                 {
-                    flags[2] = C_1;
-                    c=1;
+                    flags[2] = RR_1;
+                    c = 1;
                     counter++;
                 }
-                else if ((answer[0] == C_0 ^A) && flags[2] == C_UA && counter == 3 && c==0)
+                else if ((answer[0] == RR_0 ^ A) && flags[2] == RR_0 && counter == 3 && c == 0)
                 {
-                    flags[3] = C_0 ^A;
+                    flags[3] = RR_0 ^ A;
                     not_read = false;
                     int bytes = read(fd, answer, 1);
                     printf("%d\n", answer[0]);
                     break;
                 }
-                else if ((answer[0] == C_1 ^A) && flags[2] == C_UA && counter == 3 && c==1)
+                else if ((answer[0] == RR_1 ^ A) && flags[2] == RR_1 && counter == 3 && c == 1)
                 {
-                    flags[3] = C_1 ^A;
+                    flags[3] = RR_1 ^ A;
                     not_read = false;
                     int bytes = read(fd, answer, 1);
                     printf("%d\n", answer[0]);
@@ -268,7 +271,6 @@ int main(int argc, char *argv[])
             alarmEnabled = TRUE;
         }
     }
-
 
     sleep(1);
 
