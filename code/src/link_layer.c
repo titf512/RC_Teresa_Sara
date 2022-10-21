@@ -13,22 +13,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
+#include <macros.h>
+#include "aux.h"
 
-#define FALSE 0
-#define TRUE 1
-#define F 0x7E
-#define A 0x03
-#define C_SET 0x03
-#define C_UA 0x07
-#define BCC_UA A ^ C_UA
-#define BCC_SET A ^ C_SET
-#define C_0 0x00
-#define C_1 0x40
-#define RR_0 0x05
-#define RR_1 0x85
-#define REJ_0 0x01
-#define REJ_1 0x81
-#define BUF_SIZE 256
 
 volatile int STOP = FALSE;
 int alarmEnabled = FALSE;
@@ -57,12 +44,8 @@ int llopen(LinkLayer connectionParameters)
 
     if (connectionParameters.role == LlTx)
     {
-        unsigned char codes[100] = {F, A, C_SET, BCC_SET, F};
-        unsigned char answer[100];
-        bool stop = true;
-        int data[100] = {0x00, 0x01};
-        int c = 0;
-
+        unsigned char codes[6] = {F, A, C_SET, A^C_SET, F};
+        
         // Set alarm function handler
         (void)signal(SIGALRM, alarmHandler);
 
@@ -74,93 +57,18 @@ int llopen(LinkLayer connectionParameters)
 
             if (alarmEnabled == FALSE)
             {
-                alarm(3); // Set alarm to be triggered in 3s
-                unsigned char flags[5];
-                int counter = 0;
-                bool not_read = true;
-
-                while (not_read)
-                {
-                    int bytes = read(connectionParameters.serialPort, answer, 1);
-                    printf("%d\n", answer[0]);
-
-                    if (answer[0] == F && counter == 0)
-                    {
-                        flags[0] = F;
-                        counter++;
-                    }
-                    else if (answer[0] == A && flags[0] == F && counter == 1)
-                    {
-                        flags[1] = A;
-                        counter++;
-                    }
-                    else if (answer[0] == C_UA && flags[1] == A && counter == 2)
-                    {
-                        flags[2] = C_UA;
-                        counter++;
-                    }
-                    else if (answer[0] == BCC_UA && flags[2] == C_UA && counter == 3)
-                    {
-                        flags[3] = BCC_UA;
-                        not_read = false;
-                        int bytes = read(connectionParameters.serialPort, answer, 1);
-                        printf("%d\n", answer[0]);
-                        break;
-                    }
-                    else
-                    {
-                        memset(flags, 0, 5);
-                        counter = 0;
-                    }
-                }
+                alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
+                read_frame_header(linkLayer.serialPort,C_UA);
                 alarmEnabled = TRUE;
             }
         }
-
+        return -1;
+        
     }else if (connectionParameters.role == LlRx){
-        unsigned char test[5] = {F, A, C_UA, BCC_UA, F};
-        unsigned char codes[100];
-        unsigned char flags[5];
-
-        int counter = 0;
-        bool not_read = true;
-
-        while (not_read)
-        {
-            int bytes = read(connectionParameters.serialPort, codes, 1);
-            printf("%d\n", codes[0]);
-
-            if (codes[0] == F && counter == 0)
-            {
-                flags[0] = F;
-                counter++;
-            }
-            else if (codes[0] == A && flags[0] == F && counter == 1)
-            {
-                flags[1] = A;
-                counter++;
-            }
-            else if (codes[0] == C_SET && flags[1] == A && counter == 2)
-            {
-                flags[2] = C_SET;
-                counter++;
-            }
-            else if (codes[0] == BCC_SET && flags[2] == C_SET && counter == 3)
-            {
-
-                flags[3] = BCC_SET;
-                not_read = false;
-                printf("%d\n", codes[0]);
-                break;
-            }
-            else
-            {
-                memset(flags, 0, 5);
-                counter = 0;
-            }
+        if (read_frame_header(linkLayer.serialPort, C_SET)==0){
+            unsigned char codes[6] = {F, A, C_SET, A ^ C_UA, F};
+            write(connectionParameters.serialPort, codes, 5);
         }
-
-        write(connectionParameters.serialPort, test, 5);
     }
 }
 
