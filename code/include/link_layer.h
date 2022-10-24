@@ -19,6 +19,8 @@ typedef struct
     int baudRate;
     int nRetransmissions;
     int timeout;
+    unsigned int sequenceNumber;
+    unsigned char frame[BUFFERSIZE];
 } LinkLayer;
 
 // SIZE of maximum acceptable payload.

@@ -1,6 +1,5 @@
 // Link layer protocol implementation
 
-#include "link_layer.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,9 +12,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
-#include <macros.h>
-#include "aux.h"
-
+#include "../include/macros.h"
+#include "../include/aux.h"
+#include "../include/link_layer.h"
 
 volatile int STOP = FALSE;
 int alarmEnabled = FALSE;
@@ -25,6 +24,9 @@ int alarmCount = 0;
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
 LinkLayer linkLayer;
+
+struct termios oldtio;
+struct termios newtio;
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
@@ -42,32 +44,60 @@ int llopen(LinkLayer connectionParameters)
 {
     linkLayer = connectionParameters;
 
+    int ret = -1;
+    int fd;
+
+    if (fd = openFile(linkLayer.serialPort) == -1)
+    {
+        return -1;
+    }
+
     if (connectionParameters.role == LlTx)
     {
-        unsigned char codes[6] = {F, A, C_SET, A^C_SET, F};
-        
+        unsigned char codes[6] = {F, A, C_SET, A ^ C_SET, F};
+
         // Set alarm function handler
         (void)signal(SIGALRM, alarmHandler);
-
+        // ALTERAR
         while (alarmCount < 3 && alarmEnabled == FALSE)
         {
-            int bytes = write(connectionParameters.serialPort, codes, 5);
-            printf("%d bytes written\n", bytes);
+            if (write(connectionParameters.serialPort, codes, 5) < 0)
+            {
+                closeFile(fd, &oldtio);
+                return -1;
+            }
+
             alarmCount++;
 
             if (alarmEnabled == FALSE)
             {
                 alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
-                read_frame_header(linkLayer.serialPort,C_UA);
+                ret = read_frame_header(linkLayer.serialPort, C_UA);
                 alarmEnabled = TRUE;
             }
         }
-        return -1;
-        
-    }else if (connectionParameters.role == LlRx){
-        if (read_frame_header(linkLayer.serialPort, C_SET)==0){
-            unsigned char codes[6] = {F, A, C_SET, A ^ C_UA, F};
-            write(connectionParameters.serialPort, codes, 5);
+        if (ret == -1)
+        {
+            closeFile(fd, &oldtio);
+            return -1;
+        }
+    }
+
+    else if (connectionParameters.role == LlRx)
+    {
+        if (read_frame_header(linkLayer.serialPort, C_SET) == 0)
+        {
+            unsigned char codes[6] = {F, A, C_UA, A ^ C_UA, F};
+            if (write(connectionParameters.serialPort, codes, 5) < 0)
+            {
+                closeFile(fd, &oldtio);
+                return -1;
+            }
+        }
+        else
+        {
+            closeFile(fd, &oldtio);
+            return -1;
         }
     }
 }
@@ -75,19 +105,75 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 // LLWRITE
 ////////////////////////////////////////////////
-int llwrite(const unsigned char *buf, int bufSize, int c)
+int llwrite(int fd, const unsigned char *buf, int bufSize)
 {
+
+    unsigned char response[BUFFERSIZE];
+    unsigned char controlByte;
+    bool dataSent = FALSE;
+    unsigned char wantedBytes[2];
+    bool resendFrame = false;
+
+    if (linkLayer.sequenceNumber == 0)
+    {
+        controlByte = S_0;
+    }
+    else
+    {
+        controlByte = S_1;
+    }
+
+    createFrame(linkLayer.frame, controlByte, buf, bufSize);
+
     (void)signal(SIGALRM, alarmHandler);
 
-    unsigned char dataFlags[4] = {F,A,0,0};
+    if (controlByte == S_0)
+    {
+        wantedBytes[0] = RR_1;
+        wantedBytes[1] = REJ_0;
+    }
+    else if (controlByte == S_1)
+    {
+        wantedBytes[0] = RR_0;
+        wantedBytes[1] = REJ_1;
+    }
+
+    while (alarmCount < linkLayer.nRetransmissions && dataSent == FALSE)
+    {
+        if (write(fd, linkLayer.frame, bufSize + 6) == -1)
+        { ////mudar terceiro parâmetro para o return do create frame
+          ////( que vai ser o length da frame)
+            closeFile(fd, &oldtio);
+            return -1;
+        }
+        
+        alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
+
+        while (alarmEnabled == FALSE)
+        {
+            int read_value = read_frame_header(linkLayer.serialPort, wantedBytes);
+
+            if (read_value >= 0)
+            { // read_value é o índice do wantedByte que foi encontrado
+                // Cancels alarm
+                alarm(0);
+                dataSent = TRUE;
+            }
+        }
+    }
+
+    unsigned char dataFlags[4] = {F, A, 0, 0};
     unsigned char dataFlags_end[2];
 
     while (alarmCount < linkLayer.nRetransmissions && alarmEnabled == FALSE)
     {
-        if (c==0){
+        if (c == 0)
+        {
             dataFlags[2] = C_0;
             dataFlags[3] = A ^ C_0;
-        }else{
+        }
+        else
+        {
             dataFlags[2] = C_1;
             dataFlags[3] = A ^ C_1;
         }
@@ -122,7 +208,8 @@ int llwrite(const unsigned char *buf, int bufSize, int c)
                     flags[1] = A;
                     counter++;
                 }
-                else if (answer[0] == REJ_0 && flags[1] == A && counter == 2 && c == 1){
+                else if (answer[0] == REJ_0 && flags[1] == A && counter == 2 && c == 1)
+                {
                     flags[2] = REJ_0;
                     counter++;
                 }
@@ -143,17 +230,16 @@ int llwrite(const unsigned char *buf, int bufSize, int c)
                     c = 1;
                     counter++;
                 }
-                else if ((answer[0] == REJ_1 ^ A && flags[1] == REJ_1 && counter == 3 && c == 0)
-                    || (answer[0] == REJ_0 ^ A && flags[1] == REJ_0 && counter == 3 && c == 1))
-                    {
-                        read(linkLayer.serialPort, answer, 1);
-                        printf("%d\n", answer[0]);
+                else if ((answer[0] == REJ_1 ^ A && flags[1] == REJ_1 && counter == 3 && c == 0) || (answer[0] == REJ_0 ^ A && flags[1] == REJ_0 && counter == 3 && c == 1))
+                {
+                    read(linkLayer.serialPort, answer, 1);
+                    printf("%d\n", answer[0]);
 
-                        write(linkLayer.serialPort, dataFlags, 4);
-                        write(linkLayer.serialPort, buf, bufSize);
-                        write(linkLayer.serialPort, dataFlags_end, 2);
-                        alarmCount++;
-                        break;
+                    write(linkLayer.serialPort, dataFlags, 4);
+                    write(linkLayer.serialPort, buf, bufSize);
+                    write(linkLayer.serialPort, dataFlags_end, 2);
+                    alarmCount++;
+                    break;
                 }
                 else if ((answer[0] == RR_0 ^ A) && flags[2] == RR_0 && counter == 3 && c == 0)
                 {
