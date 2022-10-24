@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include "../include/aux.h"
 #include "../include/link_layer.h"
+#include "../include/alarm.h"
 
 int read_frame_header(char serialPort[50], int control_byte[2])
 {

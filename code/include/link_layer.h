@@ -37,11 +37,11 @@ int llopen(LinkLayer connectionParameters);
 
 // Send data in buf with size bufSize.
 // Return number of chars written, or "-1" on error.
-int llwrite(const unsigned char *buf, int bufSize, int c);
+int llwrite(int fd, const unsigned char *buf, int bufSize);
 
 // Receive data in packet.
 // Return number of chars read, or "-1" on error.
-int llread(unsigned char *packet, int c);
+int llread(unsigned char *packet, int fd);
 
 // Close previously opened connection.
 // if showStatistics == TRUE, link layer should print statistics in the console on close.
