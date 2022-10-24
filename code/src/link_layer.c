@@ -51,22 +51,18 @@ int llopen(LinkLayer connectionParameters)
         // Set alarm function handler
         (void)signal(SIGALRM, alarmHandler);
         // ALTERAR
-        while (alarmCount < 3 && alarmEnabled == FALSE)
+        while (alarmCount < 3)
         {
             if (write(connectionParameters.serialPort, codes, 5) < 0)
             {
                 closeFile(fd, &oldtio);
                 return -1;
             }
-
-            alarmCount++;
-
-            if (alarmEnabled == FALSE)
-            {
-                alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
-                ret = read_frame_header(linkLayer.serialPort, C_UA);
-                alarmEnabled = TRUE;
-            }
+            
+            int control_byte[2] = {C_UA, 0};
+            alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
+            ret = read_frame_header(linkLayer.serialPort, control_byte);
+            alarmEnabled = TRUE;
         }
         if (ret == -1)
         {
@@ -173,7 +169,7 @@ int sequenceNr = 0;
 
 int llread(unsigned char *packet, int fd)
 {
-   
+
     return -1;
 }
 
