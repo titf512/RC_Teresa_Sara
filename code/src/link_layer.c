@@ -58,7 +58,7 @@ int llopen(LinkLayer connectionParameters)
                 closeFile(fd, &oldtio);
                 return -1;
             }
-            
+
             int control_byte[2] = {C_UA, 0};
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
             ret = read_frame_header(linkLayer.serialPort, control_byte);
@@ -169,8 +169,130 @@ int sequenceNr = 0;
 
 int llread(unsigned char *packet, int fd)
 {
+    int numBytes;
+    unsigned char wantedBytes[2];
+    wantedBytes[0] = S_0;
+    wantedBytes[1] = S_1;
 
-    return -1;
+    int read_value;
+
+    bool isBufferFull = false;
+
+    while (!isBufferFull)
+    {
+        read_value = read_frame_header(linkLayer.frame, wantedBytes);
+
+        printf("Received I frame\n");
+/*
+        if ((numBytes = byteDestuffing(ll.frame, read_value)) < 0)
+        {
+            closeNonCanonical(fd, &oldtio);
+            return -1;
+        }*/
+
+        int controlByteRead;
+        if (linkLayer.frame[2] == S_0)
+            controlByteRead = 0;
+        else if (linkLayer.frame[2] == S_1)
+            controlByteRead = 1;
+
+        unsigned char responseByte;
+        if (linkLayer.frame[numBytes - 2] == bcc_2(&linkLayer.frame[DATA_BEGIN], numBytes - 6))
+        { // if bcc2 is correct
+
+            if (controlByteRead != linkLayer.sequenceNumber)
+            { // duplicated trama; discard information
+
+                // ignora dados da trama
+                if (controlByteRead == 0)
+                {
+                    responseByte = RR_1;
+                    linkLayer.sequenceNumber = 1;
+                }
+                else
+                {
+                    responseByte = RR_0;
+                    linkLayer.sequenceNumber = 0;
+                }
+            }
+            else
+            { // new trama
+
+                // passes information to the buffer
+                for (int i = 0; i < numBytes - 6; i++)
+                {
+                    packet[i] = linkLayer.frame[DATA_BEGIN + i];
+                }
+
+                isBufferFull = true;
+
+                if (controlByteRead == 0)
+                {
+                    responseByte = RR_1;
+                    linkLayer.sequenceNumber = 1;
+                }
+                else
+                {
+                    responseByte = RR_0;
+                    linkLayer.sequenceNumber = 0;
+                }
+            }
+        }
+        else
+        { // if bcc2 is not correct
+            if (controlByteRead != linkLayer.sequenceNumber)
+            { // duplicated trama
+
+                // ignores frame data
+
+                if (controlByteRead == 0)
+                {
+                    responseByte = RR_1;
+                    linkLayer.sequenceNumber = 1;
+                }
+                else
+                {
+                    responseByte = RR_0;
+                    linkLayer.sequenceNumber = 0;
+                }
+            }
+            else
+            { // new trama
+
+                // ignores frame data, because of error
+
+                if (controlByteRead == 0)
+                {
+                    responseByte = REJ_0;
+                    linkLayer.sequenceNumber = 0;
+                }
+                else
+                {
+                    responseByte = REJ_1;
+                    linkLayer.sequenceNumber = 1;
+                }
+            }
+        }
+
+        if (createFrame(linkLayer.frame, responseByte, RECEIVER) != 0)
+        {
+            closeNonCanonical(fd, &oldtio);
+            return -1;
+        }
+
+        //linkLayer.frameLength = BUF_SIZE_SUP;
+
+        // send RR/REJ frame to receiver
+        if (write(fd, linkLayer.frame,5) == -1)
+        {
+            closeNonCanonical(fd, &oldtio);
+            return -1;
+        }
+
+        printf("Sent response frame (%x)\n", linkLayer.frame[2]);
+    }
+
+    return (numBytes - 6); // number of bytes of the data packet read
 }
 
 ////////////////////////////////////////////////

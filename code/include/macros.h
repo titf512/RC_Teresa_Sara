@@ -8,6 +8,7 @@
 
 #define SUPERVISION 0
 #define INFORMATION 1
+#define DATA_BEGIN 4
 
 #define NUM_RETR 3
 #define TIMEOUT 3
