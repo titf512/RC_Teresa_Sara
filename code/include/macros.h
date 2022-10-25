@@ -29,6 +29,7 @@
 #define REJ_1 0x81
 #define VTIME_VALUE 0
 #define VMIN_VALUE 1
+#define DISC 0x0B
 
 #define _POSIX_SOURCE 1 // POSIX compliant source
 

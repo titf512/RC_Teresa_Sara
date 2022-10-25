@@ -50,7 +50,7 @@ int llopen(LinkLayer connectionParameters)
 
         // Set alarm function handler
         (void)signal(SIGALRM, alarmHandler);
-        // ALTERAR
+
         while (alarmCount < 3)
         {
             if (write(connectionParameters.serialPort, codes, 5) < 0)
@@ -173,38 +173,33 @@ int llread(unsigned char *packet, int fd)
     unsigned char wantedBytes[2];
     wantedBytes[0] = S_0;
     wantedBytes[1] = S_1;
+    bool packetComplete = false;
 
-    int read_value;
-
-    bool isBufferFull = false;
-
-    while (!isBufferFull)
+    while (!packetComplete)
     {
-        read_value = read_frame_header(linkLayer.frame, wantedBytes);
+        read_frame_header(linkLayer.frame, wantedBytes);
+        /*
+                if ((numBytes = byteDestuffing(ll.frame, read_value)) < 0)
+                {
+                    closeNonCanonical(fd, &oldtio);
+                    return -1;
+                }*/
 
-        printf("Received I frame\n");
-/*
-        if ((numBytes = byteDestuffing(ll.frame, read_value)) < 0)
-        {
-            closeNonCanonical(fd, &oldtio);
-            return -1;
-        }*/
-
-        int controlByteRead;
+        int controlByte;
         if (linkLayer.frame[2] == S_0)
-            controlByteRead = 0;
+            controlByte = 0;
         else if (linkLayer.frame[2] == S_1)
-            controlByteRead = 1;
+            controlByte = 1;
 
         unsigned char responseByte;
+        // if bcc_2 is correct
         if (linkLayer.frame[numBytes - 2] == bcc_2(&linkLayer.frame[DATA_BEGIN], numBytes - 6))
-        { // if bcc2 is correct
-
-            if (controlByteRead != linkLayer.sequenceNumber)
-            { // duplicated trama; discard information
-
-                // ignora dados da trama
-                if (controlByteRead == 0)
+        {
+            // frame is duplicated
+            if (controlByte != linkLayer.sequenceNumber)
+            {
+                // sends confirmation and ignores data
+                if (controlByte == 0)
                 {
                     responseByte = RR_1;
                     linkLayer.sequenceNumber = 1;
@@ -215,18 +210,18 @@ int llread(unsigned char *packet, int fd)
                     linkLayer.sequenceNumber = 0;
                 }
             }
+            // received new frame
             else
-            { // new trama
-
-                // passes information to the buffer
+            {
+                // saves data
                 for (int i = 0; i < numBytes - 6; i++)
                 {
                     packet[i] = linkLayer.frame[DATA_BEGIN + i];
                 }
 
-                isBufferFull = true;
+                packetComplete = true;
 
-                if (controlByteRead == 0)
+                if (controlByte == 0)
                 {
                     responseByte = RR_1;
                     linkLayer.sequenceNumber = 1;
@@ -238,14 +233,14 @@ int llread(unsigned char *packet, int fd)
                 }
             }
         }
+        // if bcc2 is not correct
         else
-        { // if bcc2 is not correct
-            if (controlByteRead != linkLayer.sequenceNumber)
-            { // duplicated trama
-
-                // ignores frame data
-
-                if (controlByteRead == 0)
+        {
+            // frame is duplicated
+            if (controlByte != linkLayer.sequenceNumber)
+            {
+                // sends confirmation and ignores data
+                if (controlByte == 0)
                 {
                     responseByte = RR_1;
                     linkLayer.sequenceNumber = 1;
@@ -256,12 +251,11 @@ int llread(unsigned char *packet, int fd)
                     linkLayer.sequenceNumber = 0;
                 }
             }
+            // new frame
             else
-            { // new trama
-
-                // ignores frame data, because of error
-
-                if (controlByteRead == 0)
+            {
+                // data is wrong, asks for new packet
+                if (controlByte == 0)
                 {
                     responseByte = REJ_0;
                     linkLayer.sequenceNumber = 0;
@@ -274,22 +268,16 @@ int llread(unsigned char *packet, int fd)
             }
         }
 
-        if (createFrame(linkLayer.frame, responseByte, RECEIVER) != 0)
+        createFrame(linkLayer.frame, responseByte, RECEIVER);
+
+        // send supervision frame
+        if (write(fd, linkLayer.frame, 5) == -1)
         {
             closeNonCanonical(fd, &oldtio);
             return -1;
         }
 
-        //linkLayer.frameLength = BUF_SIZE_SUP;
-
-        // send RR/REJ frame to receiver
-        if (write(fd, linkLayer.frame,5) == -1)
-        {
-            closeNonCanonical(fd, &oldtio);
-            return -1;
-        }
-
-        printf("Sent response frame (%x)\n", linkLayer.frame[2]);
+        printf("Response frame: (%x)\n", linkLayer.frame[2]);
     }
 
     return (numBytes - 6); // number of bytes of the data packet read
@@ -298,9 +286,116 @@ int llread(unsigned char *packet, int fd)
 ////////////////////////////////////////////////
 // LLCLOSE
 ////////////////////////////////////////////////
-int llclose(int showStatistics)
+int llclose(int fd)
 {
-    // TODO
 
-    return 1;
+    if (fd = openFile(linkLayer.serialPort) == -1)
+    {
+        return -1;
+    }
+
+    if (linkLayer.role == LlTx)
+    {
+        unsigned char responseBuffer[5]; // buffer to receive the response
+
+        // creates DISC frame
+        if (createFrame(linkLayer.frame, DISC, TRANSMITTER) != 0)
+            return -1;
+
+        printf("Sent DISC frame\n");
+
+        int ret = -1;
+
+        unsigned char wantedByte[1];
+        // wantedByte[0] = DISC;
+        alarmCount = 0;
+
+        while (alarmCount < 3)
+        {
+            // send DISC frame to receiver
+            if (write(fd, linkLayer.frame, 5) == -1)
+                return -1;
+
+            alarm(linkLayer.timeout);
+
+            ret = read_frame_header(responseBuffer, DISC);
+            
+            if (ret >= 0)
+            {
+                // Cancels alarm
+                alarm(0);
+                break;
+            }
+        }
+
+        if (ret == -1)
+        {
+            printf("Closing file descriptor\n");
+            return -1;
+        }
+
+        printf("Received DISC frame\n");
+
+        // creates UA frame
+        if (createFrame(linkLayer.frame, C_UA, TRANSMITTER) != 0)
+            return -1;
+
+        // send DISC frame to receiver
+        if (write(fd, linkLayer.frame, 5) == -1)
+            return -1;
+
+        printf("Sent UA frame\n");
+
+        return 0;
+    }
+
+    else if (linkLayer.role == LlRx)
+    {
+        unsigned char responseBuffer[5]; // buffer to receive the response
+
+        unsigned char wantedByte[1];
+        wantedByte[0] = DISC;
+
+        if (read_frame_header(linkLayer.frame, DISC) == -1)
+            return -1;
+
+        printf("Received DISC frame\n");
+
+        // creates DISC frame
+        createFrame(linkLayer.frame, DISC, RECEIVER);
+
+        printf("Sent DISC frame\n");
+
+        int ret = -1;
+        alarmCount = 0;
+
+        while (alarmCount < 3)
+        {
+            // send DISC frame to receiver
+            if (write(fd, linkLayer.frame, 5) == -1)
+                return -1;
+
+            alarm(linkLayer.timeout);
+
+            ret = read_frame_header(responseBuffer, C_UA);
+            alarmEnabled = TRUE;
+
+            if (ret >= 0)
+            {
+                // Cancels alarm
+                alarm(0);
+                break;
+            }
+        }
+
+        if (ret == -1)
+        {
+            printf("Closing file descriptor\n");
+            return -1;
+        }
+
+        printf("Received UA frame\n");
+
+        return 0;
+    }
 }
