@@ -31,6 +31,10 @@
 #define VMIN_VALUE 1
 #define DISC 0x0B
 
+#define ESCAPE_STUFFING 0x5D
+#define F_STUFFING 0x5E
+#define ESCAPE 0x7D
+
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
 // ---- macros for application layer ----

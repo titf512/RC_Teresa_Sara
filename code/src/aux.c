@@ -164,3 +164,95 @@ int createFrame(unsigned char *frame, unsigned char *controlByte, unsigned char 
 
     return 0;
 }
+
+/**
+ * Function to apply byte stuffing to the Data Characters of a frame
+ * @param frame Address of the frame
+ * @param length Number of Data Characters to process
+ * @return Length of the new frame, post byte stuffing
+ */
+int byteStuffing(unsigned char *frame, int length)
+{
+
+    // allocates space for auxiliary buffer (length of the packet, plus 6 bytes for the frame header and tail)
+    unsigned char bufferAux[length + 6];
+
+    // passes information from the frame to aux
+    for (int i = 0; i < length + 6; i++)
+    {
+        bufferAux[i] = frame[i];
+    }
+
+    int currentPos = DATA_BEGIN;
+    // parses aux buffer, and fills in correctly the frame buffer
+    for (int i = DATA_BEGIN; i < (length + 6); i++)
+    {
+        if (bufferAux[i] == F && i != (length + 5))
+        {
+            frame[currentPos] = ESCAPE;
+            frame[currentPos + 1] = F_STUFFING;
+            currentPos = currentPos + 2;
+        }
+        else if (bufferAux[i] == ESCAPE && i != (length + 5))
+        {
+            frame[currentPos] = ESCAPE;
+            frame[currentPos + 1] = ESCAPE_STUFFING;
+            currentPos = currentPos + 2;
+        }
+        else
+        {
+            frame[currentPos] = bufferAux[i];
+            currentPos++;
+        }
+    }
+
+    return currentPos;
+}
+
+/**
+ * Function to reverse the byte stuffing applied to the Data Characters of a frame
+ * @param frame Address of the frame
+ * @param length Number of Data Characters to process
+ * @return Length of the new frame, post byte destuffing
+ */
+int byteDestuffing(unsigned char *frame, int length)
+{
+
+    // allocates space for the maximum possible frame length read (length of the data packet + bcc2, already with stuffing, plus the other 5 bytes in the frame)
+    unsigned char aux[length + 5];
+
+    // copies the content of the frame (with stuffing) to the aux frame
+    for (int i = 0; i < (length + 5); i++)
+    {
+        aux[i] = frame[i];
+    }
+
+    int finalLength = DATA_BEGIN;
+
+    // iterates through the aux buffer, and fills the frame buffer with destuffed content
+    for (int i = DATA_BEGIN; i < (length + 5); i++)
+    {
+
+        if (aux[i] == ESCAPE)
+        {
+            if (aux[i + 1] == ESCAPE_STUFFING)
+            {
+                frame[finalLength] = ESCAPE;
+            }
+            else if (aux[i + 1] == F_STUFFING)
+            {
+                frame[finalLength] = F;
+            }
+            i++;
+            finalLength++;
+        }
+        else
+        {
+            frame[finalLength] = aux[i];
+            finalLength++;
+        }
+    }
+
+    return finalLength;
+}
+
