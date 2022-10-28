@@ -35,6 +35,7 @@ struct termios newtio;
 int llopen(LinkLayer connectionParameters)
 {
     linkLayer = connectionParameters;
+    
 
     int ret = -1;
     int fd;
@@ -68,7 +69,8 @@ int llopen(LinkLayer connectionParameters)
         {
             closeFile(fd, &oldtio);
             return -1;
-        }
+        }else
+            return fd;
     }
 
     else if (connectionParameters.role == LlRx)
@@ -80,7 +82,9 @@ int llopen(LinkLayer connectionParameters)
             {
                 closeFile(fd, &oldtio);
                 return -1;
-            }
+            }else
+                return fd;
+            
         }
         else
         {
@@ -127,13 +131,14 @@ int llwrite(int fd, const unsigned char *buf, int bufSize)
     }
     int controlByte = 0;
 
+    linkLayer.frameSize = byteStuffing(linkLayer.frame,bufSize);
+
     while (!dataSent)
     {
         while (alarmCount < linkLayer.nRetransmissions)
         {
-            if (write(fd, linkLayer.frame, bufSize + 6) == -1)
-            { ////mudar terceiro parâmetro para o return do create frame
-              ////( que vai ser o length da frame)
+            if (write(fd, linkLayer.frame, linkLayer.frameSize  + 6) == -1)
+            {
                 closeFile(fd, &oldtio);
                 return -1;
             }
@@ -169,7 +174,7 @@ int sequenceNr = 0;
 
 int llread(unsigned char *packet, int fd)
 {
-    int numBytes;
+    int frameSize;
     unsigned char wantedBytes[2];
     wantedBytes[0] = S_0;
     wantedBytes[1] = S_1;
@@ -178,13 +183,9 @@ int llread(unsigned char *packet, int fd)
     while (!packetComplete)
     {
         read_frame_header(linkLayer.frame, wantedBytes);
-        /*
-                if ((numBytes = byteDestuffing(ll.frame, read_value)) < 0)
-                {
-                    closeNonCanonical(fd, &oldtio);
-                    return -1;
-                }*/
-
+        
+        frameSize = byteDestuffing(linkLayer.frame, linkLayer.frameSize);
+                
         int controlByte;
         if (linkLayer.frame[2] == S_0)
             controlByte = 0;
@@ -193,7 +194,7 @@ int llread(unsigned char *packet, int fd)
 
         unsigned char responseByte;
         // if bcc_2 is correct
-        if (linkLayer.frame[numBytes - 2] == bcc_2(&linkLayer.frame[DATA_BEGIN], numBytes - 6))
+        if (linkLayer.frame[frameSize - 2] == bcc_2(&linkLayer.frame[DATA_BEGIN], frameSize - 6))
         {
             // frame is duplicated
             if (controlByte != linkLayer.sequenceNumber)
@@ -214,7 +215,7 @@ int llread(unsigned char *packet, int fd)
             else
             {
                 // saves data
-                for (int i = 0; i < numBytes - 6; i++)
+                for (int i = 0; i < frameSize - 6; i++)
                 {
                     packet[i] = linkLayer.frame[DATA_BEGIN + i];
                 }
@@ -280,7 +281,7 @@ int llread(unsigned char *packet, int fd)
         printf("Response frame: (%x)\n", linkLayer.frame[2]);
     }
 
-    return (numBytes - 6); // number of bytes of the data packet read
+    return (frameSize - 6); // number of bytes of the data packet read
 }
 
 ////////////////////////////////////////////////

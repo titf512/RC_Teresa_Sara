@@ -77,6 +77,7 @@ int closeFile(int fd, struct termios *oldtio)
 
     return 0;
 }
+  
 
 int openFile(char serialPort[50])
 {
@@ -87,9 +88,6 @@ int openFile(char serialPort[50])
         perror(serialPort);
         exit(-1);
     }
-
-    struct termios oldtio;
-    struct termios newtio;
 
     // Save current port settings
     if (tcgetattr(fd, &oldtio) == -1)
@@ -165,12 +163,6 @@ int createFrame(unsigned char *frame, unsigned char *controlByte, unsigned char 
     return 0;
 }
 
-/**
- * Function to apply byte stuffing to the Data Characters of a frame
- * @param frame Address of the frame
- * @param length Number of Data Characters to process
- * @return Length of the new frame, post byte stuffing
- */
 int byteStuffing(unsigned char *frame, int length)
 {
 
@@ -209,12 +201,6 @@ int byteStuffing(unsigned char *frame, int length)
     return currentPos;
 }
 
-/**
- * Function to reverse the byte stuffing applied to the Data Characters of a frame
- * @param frame Address of the frame
- * @param length Number of Data Characters to process
- * @return Length of the new frame, post byte destuffing
- */
 int byteDestuffing(unsigned char *frame, int length)
 {
 
@@ -227,7 +213,7 @@ int byteDestuffing(unsigned char *frame, int length)
         aux[i] = frame[i];
     }
 
-    int finalLength = DATA_BEGIN;
+    int currentPos = DATA_BEGIN;
 
     // iterates through the aux buffer, and fills the frame buffer with destuffed content
     for (int i = DATA_BEGIN; i < (length + 5); i++)
@@ -237,22 +223,42 @@ int byteDestuffing(unsigned char *frame, int length)
         {
             if (aux[i + 1] == ESCAPE_STUFFING)
             {
-                frame[finalLength] = ESCAPE;
+                frame[currentPos] = ESCAPE;
             }
             else if (aux[i + 1] == F_STUFFING)
             {
-                frame[finalLength] = F;
+                frame[currentPos] = F;
             }
             i++;
-            finalLength++;
+            currentPos++;
         }
         else
         {
-            frame[finalLength] = aux[i];
-            finalLength++;
+            frame[currentPos] = aux[i];
+            currentPos++;
         }
     }
 
-    return finalLength;
+    return currentPos;
 }
 
+int getOctectsNumber(int l1, int l2){
+    return 256*l2 +l1;
+}
+
+void getOctets (int fileSize, int *l1, int* l2){
+    *l1 = fileSize % 256;
+    *l2 = fileSize / 256;
+}
+
+int getFileSize(FILE *fp)
+{
+
+    int lsize;
+
+    fseek(fp, 0, SEEK_END);
+    lsize = (int)ftell(fp);
+    rewind(fp);
+
+    return lsize;
+}
