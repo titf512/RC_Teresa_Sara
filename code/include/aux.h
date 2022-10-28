@@ -15,18 +15,18 @@
 #include <signal.h>
 #include <stdio.h>
 
-struct termios *oldtio;
+struct termios oldtio;
 struct termios newtio;
 
-int read_frame_header(char serialPort[50], int control_byte[2]);
+int read_frame_header(int fd, int control_byte[2]);
 
-int closeFile(int fd, struct termios *oldtio);
+int closeNonCanonical(int fd, struct termios oldtio);
 
-int openFile(char serialPort[50]);
+int openNonCanonical(char serialPort[50]);
 
-int bcc_2(int arr[], int n);
+int bcc_2(unsigned char arr[MAX_DATA_SIZE], int n);
 
-void getOctets (int fileSize, int *l1, int* l2);
+void getOctets(int fileSize, int *l1, int *l2);
 
 int getOctectsNumber(int l1, int l2);
 

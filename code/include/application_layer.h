@@ -6,11 +6,11 @@
 
 #include"link_layer.h"
 
-typedef struct AppLayer
+typedef struct 
 {
     int fileDescriptor; /*Descritor correspondente à porta série*/
     int status;         /*TRANSMITTER | RECEIVER*/
-};
+} AppLayer;
 
 // Application layer main function.
 // Arguments:

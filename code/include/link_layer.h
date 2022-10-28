@@ -14,13 +14,13 @@ typedef enum
 
 typedef struct
 {
-    const char serialPort[50];
+    char serialPort[50];
     LinkLayerRole role;
     int baudRate;
     int nRetransmissions;
     int timeout;
     unsigned int sequenceNumber;
-    unsigned char frame[BUFFERSIZE];
+    char frame[BUFFERSIZE];
     unsigned int frameSize;
 } LinkLayer;
 

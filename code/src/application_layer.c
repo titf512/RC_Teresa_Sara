@@ -133,12 +133,12 @@ int parseDataPacket(unsigned char *packetBuffer, unsigned char *data, int *seque
     return 0;
 }
 
-struct AppLayer appLayer;
+AppLayer appLayer;
 
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
-    int frame[2058];
+    char frame[BUFFERSIZE];
     LinkLayer connectionParameters;
     connectionParameters.baudRate = baudRate;
     connectionParameters.nRetransmissions = nTries;

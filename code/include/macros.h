@@ -1,7 +1,9 @@
 #ifndef _MACROS_H_
 #define _MACROS_H_
+#include <termio.h>
 
 #define BAUDRATE B38400 // 38400 is the normal value
+#define N_TRIES 3
 #define FALSE 0
 #define TRUE 1
 #define BUFFERSIZE 256

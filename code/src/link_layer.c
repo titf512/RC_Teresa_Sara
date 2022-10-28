@@ -18,29 +18,31 @@
 #include "../include/alarm.h"
 
 volatile int STOP = FALSE;
-int alarmEnabled = FALSE;
-int alarmCount = 0;
 
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
 LinkLayer linkLayer;
 
-struct termios oldtio;
-struct termios newtio;
 ////////////////////////////////////////////////
 // LLOPEN
 ////////////////////////////////////////////////
 
 int llopen(LinkLayer connectionParameters)
 {
-    linkLayer = connectionParameters;
-    
+    linkLayer.baudRate = connectionParameters.baudRate;
+    linkLayer.nRetransmissions = connectionParameters.nRetransmissions;
+    linkLayer.sequenceNumber = connectionParameters.sequenceNumber;
+    strcpy(linkLayer.serialPort, connectionParameters.serialPort);
+    linkLayer.timeout = connectionParameters.timeout;
+    linkLayer.role = connectionParameters.role;
+    strcpy(linkLayer.frame, connectionParameters.frame);
+    linkLayer.frameSize = connectionParameters.frameSize;
 
     int ret = -1;
     int fd;
 
-    if (fd = openFile(linkLayer.serialPort) == -1)
+    if (fd = openNonCanonical(linkLayer.serialPort) == -1)
     {
         return -1;
     }
@@ -56,39 +58,40 @@ int llopen(LinkLayer connectionParameters)
         {
             if (write(connectionParameters.serialPort, codes, 5) < 0)
             {
-                closeFile(fd, &oldtio);
+                fclose(fd);
                 return -1;
             }
 
             int control_byte[2] = {C_UA, 0};
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
-            ret = read_frame_header(linkLayer.serialPort, control_byte);
+            ret = read_frame_header(fd, control_byte);
             alarmEnabled = TRUE;
         }
         if (ret == -1)
         {
-            closeFile(fd, &oldtio);
+            fclose(fd);
             return -1;
-        }else
+        }
+        else
             return fd;
     }
 
     else if (connectionParameters.role == LlRx)
     {
-        if (read_frame_header(linkLayer.serialPort, C_SET) == 0)
+        if (read_frame_header(fd, C_SET) == 0)
         {
             unsigned char codes[6] = {F, A, C_UA, A ^ C_UA, F};
             if (write(connectionParameters.serialPort, codes, 5) < 0)
             {
-                closeFile(fd, &oldtio);
+                fclose(fd);
                 return -1;
-            }else
+            }
+            else
                 return fd;
-            
         }
         else
         {
-            closeFile(fd, &oldtio);
+            fclose(fd);
             return -1;
         }
     }
@@ -131,21 +134,21 @@ int llwrite(int fd, const unsigned char *buf, int bufSize)
     }
     int controlByte = 0;
 
-    linkLayer.frameSize = byteStuffing(linkLayer.frame,bufSize);
+    linkLayer.frameSize = byteStuffing(linkLayer.frame, bufSize);
 
     while (!dataSent)
     {
         while (alarmCount < linkLayer.nRetransmissions)
         {
-            if (write(fd, linkLayer.frame, linkLayer.frameSize  + 6) == -1)
+            if (write(fd, linkLayer.frame, linkLayer.frameSize + 6) == -1)
             {
-                closeFile(fd, &oldtio);
+                fclose(fd);
                 return -1;
             }
 
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
 
-            controlByte = read_frame_header(linkLayer.serialPort, wantedBytes);
+            controlByte = read_frame_header(fd, wantedBytes);
 
             if (controlByte >= 0)
             { // read_value é o índice do wantedByte que foi encontrado
@@ -182,10 +185,10 @@ int llread(unsigned char *packet, int fd)
 
     while (!packetComplete)
     {
-        read_frame_header(linkLayer.frame, wantedBytes);
-        
+        read_frame_header(fd, wantedBytes);
+
         frameSize = byteDestuffing(linkLayer.frame, linkLayer.frameSize);
-                
+
         int controlByte;
         if (linkLayer.frame[2] == S_0)
             controlByte = 0;
@@ -290,11 +293,6 @@ int llread(unsigned char *packet, int fd)
 int llclose(int fd)
 {
 
-    if (fd = openFile(linkLayer.serialPort) == -1)
-    {
-        return -1;
-    }
-
     if (linkLayer.role == LlTx)
     {
         unsigned char responseBuffer[5]; // buffer to receive the response
@@ -319,8 +317,8 @@ int llclose(int fd)
 
             alarm(linkLayer.timeout);
 
-            ret = read_frame_header(responseBuffer, DISC);
-            
+            ret = read_frame_header(fd, DISC);
+
             if (ret >= 0)
             {
                 // Cancels alarm
@@ -331,6 +329,7 @@ int llclose(int fd)
 
         if (ret == -1)
         {
+            closeNonCanonical(fd, &oldtio);
             printf("Closing file descriptor\n");
             return -1;
         }
@@ -357,7 +356,7 @@ int llclose(int fd)
         unsigned char wantedByte[1];
         wantedByte[0] = DISC;
 
-        if (read_frame_header(linkLayer.frame, DISC) == -1)
+        if (read_frame_header(fd, DISC) == -1)
             return -1;
 
         printf("Received DISC frame\n");
@@ -378,7 +377,7 @@ int llclose(int fd)
 
             alarm(linkLayer.timeout);
 
-            ret = read_frame_header(responseBuffer, C_UA);
+            ret = read_frame_header(fd, C_UA);
             alarmEnabled = TRUE;
 
             if (ret >= 0)
@@ -391,6 +390,7 @@ int llclose(int fd)
 
         if (ret == -1)
         {
+            closeNonCanonical(fd, &oldtio);
             printf("Closing file descriptor\n");
             return -1;
         }
@@ -399,4 +399,11 @@ int llclose(int fd)
 
         return 0;
     }
+    if (closeNonCanonical(fd, &oldtio) == -1)
+        return -1;
+
+    if (close(fd) != 0)
+        return -1;
+
+    return 1;
 }

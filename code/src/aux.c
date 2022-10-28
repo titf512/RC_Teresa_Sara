@@ -15,7 +15,7 @@
 #include "../include/link_layer.h"
 #include "../include/alarm.h"
 
-int read_frame_header(char serialPort[50], int control_byte[2])
+int read_frame_header(int fd, int control_byte[2])
 {
     unsigned char flags[5];
     unsigned char buf[BUFFERSIZE];
@@ -25,7 +25,7 @@ int read_frame_header(char serialPort[50], int control_byte[2])
 
     while (not_read && alarmEnabled==FALSE)
     {
-        int bytes = read(serialPort, buf, 1);
+        read(fd, buf, 1);
         printf("%d\n", buf[0]);
 
         if (buf[0] == F && counter == 0)
@@ -46,11 +46,11 @@ int read_frame_header(char serialPort[50], int control_byte[2])
             flags[2] = control_byte[index];
             counter++;
         }
-        else if (buf[0] == control_byte[index]  ^ A && flags[2] == control_byte && counter == 3)
+        else if ((buf[0] == (control_byte[index]  ^ A ))&& (flags[2] == control_byte[index] )&& (counter == 3))
         {
             flags[3] = control_byte[index] ^ A;
             not_read = false;
-            read(serialPort, buf, 1);
+            read(fd, buf, 1);
             printf("%d\n", buf[0]);
             return index;
         }
@@ -60,9 +60,10 @@ int read_frame_header(char serialPort[50], int control_byte[2])
             counter = 0;
         }
     }
+    return 0;
 }
 
-int closeFile(int fd, struct termios *oldtio)
+int closeNonCanonical(int fd, struct termios oldtio)
 {
     sleep(1);
 
@@ -77,9 +78,8 @@ int closeFile(int fd, struct termios *oldtio)
 
     return 0;
 }
-  
 
-int openFile(char serialPort[50])
+int openNonCanonical(char serialPort[50])
 {
     int fd = open(serialPort, O_RDWR | O_NOCTTY);
 
@@ -127,7 +127,7 @@ int openFile(char serialPort[50])
     return fd;
 }
 
-int bcc_2(int arr[], int n)
+int bcc_2(unsigned char arr[MAX_DATA_SIZE], int n)
 {
     // Resultant variable
     int xor_arr = 0;
@@ -149,7 +149,7 @@ int createFrame(unsigned char *frame, unsigned char *controlByte, unsigned char 
 {
     frame[0] = F;
     frame[1] = A;
-    frame[2] = controlByte;
+    frame[2] = *controlByte;
     frame[3] = *controlByte ^ A;
 
     for (int i = 0; i < length; i++)
@@ -157,7 +157,7 @@ int createFrame(unsigned char *frame, unsigned char *controlByte, unsigned char 
         frame[i + 4] = data[i];
     }
 
-    frame[length + 4] = bbc_2(data, length);
+    frame[length + 4] = bcc_2(data, length);
     frame[length + 5] = F;
 
     return 0;
