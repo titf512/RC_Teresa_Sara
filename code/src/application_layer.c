@@ -5,18 +5,18 @@
 #include "aux.h"
 #include <stdio.h>
 
-int buildDataPacket(unsigned char *packetBuffer, int sequenceNumber, unsigned char *dataBuffer, int dataLength)
+int buildDataPacket(char *packetBuffer, int sequenceNumber, unsigned char *dataBuffer, int dataLength)
 {
 
     packetBuffer[0] = C_DATA;
 
     packetBuffer[1] = (unsigned char)sequenceNumber;
 
-    int *l1, *l2;
-    getOctets(dataLength, l1, l2);
+    int l1, l2;
+    getOctets(dataLength, &l1, &l2);
 
-    packetBuffer[2] = *l2;
-    packetBuffer[3] = *l1;
+    packetBuffer[2] = l2;
+    packetBuffer[3] = l1;
 
     for (int i = 0; i < dataLength; i++)
         packetBuffer[i + 4] = dataBuffer[i];
@@ -24,7 +24,7 @@ int buildDataPacket(unsigned char *packetBuffer, int sequenceNumber, unsigned ch
     return dataLength + 4;
 }
 
-int buildControlPacket(unsigned char controlByte, unsigned char *packetBuffer, int fileSize, char *fileName)
+int buildControlPacket(unsigned char controlByte, char *packetBuffer, int fileSize, const char *fileName)
 {
 
     packetBuffer[0] = controlByte;
@@ -145,30 +145,40 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
     connectionParameters.sequenceNumber = 0;
     strcpy(connectionParameters.serialPort, serialPort);
     connectionParameters.timeout = timeout;
-    connectionParameters.role = role;
     strcpy(connectionParameters.frame, frame);
     connectionParameters.frameSize = 2058;
 
-    if (role == TRANSMITTER)
+ 
+    if (strcmp(role, "tx")==0)
     {
-        FILE *fp = openFile(filename, "r");
+        connectionParameters.role = TRANSMITTER;
+    }
+    else if (strcmp(role, "rx")==0)
+    {
+        connectionParameters.role = RECEIVER;
+    }
+
+    if (connectionParameters.role ==  TRANSMITTER)
+    {
+
+        FILE *fp = fopen(filename, "r");
         if (fp == NULL)
         {
+            exit(-1);
             printf("Cannot find the file to transmit\n");
-            return -1;
         }
 
         // fills appLayer fields
         appLayer.status = TRANSMITTER;
 
-        if (appLayer.fileDescriptor= llopen(connectionParameters) <= 0)
+        if ((appLayer.fileDescriptor = llopen(connectionParameters)) <= 0)
         {
-            return -1;
+            exit(-1);
         }
 
         printf("\n---------------llopen done---------------\n\n");
 
-        unsigned char packetBuffer[MAX_PACK_SIZE];
+        char packetBuffer[MAX_PACK_SIZE];
         int fileSize = getFileSize(fp);
 
         int packetSize = buildControlPacket(C_START, packetBuffer, fileSize, filename);
@@ -177,7 +187,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         if (llwrite(appLayer.fileDescriptor, packetBuffer, packetSize) < 0)
         {
             fclose(fp);
-            return -1;
+            exit(-1);
         }
 
         printf("\n---------------STARTING TO SEND FILE---------------\n\n");
@@ -203,14 +213,14 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                     if (llwrite(appLayer.fileDescriptor, packetBuffer, packetSize) < 0)
                     {
                         fclose(fp);
-                        return -1;
+                        exit(-1);
                     }
                     break;
                 }
                 else
                 {
                     perror("error reading file data");
-                    return -1;
+                    exit(-1);
                 }
             }
 
@@ -221,7 +231,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             if (llwrite(appLayer.fileDescriptor, packetBuffer, packetSize) < 0)
             {
                 fclose(fp);
-                return -1;
+                exit(-1);
             }
         }
 
@@ -231,31 +241,32 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         if (llwrite(appLayer.fileDescriptor, packetBuffer, packetSize) < 0)
         {
             fclose(fp);
-            return -1;
+            exit(-1);
         }
 
         printf("\n---------------ENDED SENDING FILE---------------\n\n");
 
         if (llclose(appLayer.fileDescriptor) < 0)
-            return -1;
+            exit(-1);
 
         printf("\n---------------llclose done---------------\n\n");
 
         if (fclose(fp) != 0)
-            return -1;
+            exit(-1);
 
-        return 0;
+        exit(0);
     }
 
-    else if (role == RECEIVER)
+    else if (connectionParameters.role == RECEIVER)
     {
         int numBitsReceived = 0;
         // fills appLayer fields
         appLayer.status = RECEIVER;
 
-        if (appLayer.fileDescriptor = llopen(connectionParameters) <= 0)
+
+        if ((appLayer.fileDescriptor = llopen(connectionParameters)) <= 0)
         {
-            return -1;
+            exit(-1);
         }
 
         printf("\n---------------llopen done---------------\n\n");
@@ -271,7 +282,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         if (packetSize < 0)
         {
-            return -1;
+            exit(-1);
         }
 
         numBitsReceived += packetSize * 8;
@@ -281,27 +292,27 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         {
             if (parseControlPacket(packetBuffer, &fileSize, fileName) < 0)
             {
-                return -1;
+                exit(-1);
             }
         }
         else
         {
-            return -1;
+            exit(-1);
         }
 
-        FILE *fp = openFile("pinguim1.gif","w");
+        FILE *fp = fopen("pinguim1.gif", "w");
         if (fp == NULL)
-            return -1;
+            exit(-1);
 
         int expectedSequenceNumber = 0;
 
         // starts received data packets (file data)
         while (1)
         {
-            packetSize = llread(appLayer.fileDescriptor, packetBuffer);
+            packetSize = llread(packetBuffer, appLayer.fileDescriptor);
             if (packetSize < 0)
             {
-                return -1;
+                exit(-1);
             }
 
             numBitsReceived += packetSize * 8;
@@ -312,13 +323,13 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 int sequenceNumber;
 
                 if (parseDataPacket(packetBuffer, data, &sequenceNumber) < 0)
-                    return -1;
+                    exit(-1);
 
                 // if sequence number doesn't match
                 if (expectedSequenceNumber != sequenceNumber)
                 {
                     printf("Sequence number does not match!\n");
-                    return -1;
+                    exit(-1);
                 }
 
                 expectedSequenceNumber = (expectedSequenceNumber + 1) % 256;
@@ -328,7 +339,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 // writes to the file the content read from the serial port
                 if (fwrite(data, sizeof(unsigned char), dataLength, fp) != dataLength)
                 {
-                    return -1;
+                    exit(-1);
                 }
             }
             // received end packet; file was fully transmitted
@@ -341,7 +352,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         if (getFileSize(fp) != fileSize)
         {
             printf("file size does not match\n");
-            return -1;
+            exit(-1);
         }
 
         int fileSizeEnd;
@@ -349,25 +360,21 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         if (parseControlPacket(packetBuffer, &fileSizeEnd, fileNameEnd) < 0)
         {
-            return -1;
+            exit(-1);
         }
 
         if ((fileSize != fileSizeEnd) || (strcmp(fileNameEnd, fileName) != 0))
         {
             printf("Information in start and end packets does not match");
-            return -1;
+            exit(-1);
         }
 
         // close, in non canonical
         if (llclose(appLayer.fileDescriptor) < 0)
-            return -1;
+            exit(-1);
 
         printf("\n---------------llclose done---------------\n\n");
 
-        return 0;
-    }
-    else
-    {
-        return -1;
+        exit(0);
     }
 }

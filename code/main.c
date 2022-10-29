@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "macros.h"
+#include "alarm.h"
 
 #include "application_layer.h"
 
@@ -37,6 +38,9 @@ int main(int argc, char *argv[])
            TIMEOUT,
            filename);
 
+    alarmEnabled = FALSE;
+    alarmCount = 0;
+  
     applicationLayer(serialPort, role, BAUDRATE, N_TRIES, TIMEOUT, filename);
 
     return 0;

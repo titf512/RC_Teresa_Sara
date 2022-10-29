@@ -11,9 +11,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
-#include "../include/aux.h"
-#include "../include/link_layer.h"
-#include "../include/alarm.h"
+#include "aux.h"
+#include "link_layer.h"
+
 
 int read_frame_header(int fd, int control_byte[2])
 {
@@ -63,12 +63,12 @@ int read_frame_header(int fd, int control_byte[2])
     return 0;
 }
 
-int closeNonCanonical(int fd, struct termios oldtio)
+int closeNonCanonical(int fd, struct termios *oldtio)
 {
     sleep(1);
 
     // Restore the old port settings
-    if (tcsetattr(fd, TCSANOW, &oldtio) == -1)
+    if (tcsetattr(fd, TCSANOW, oldtio) == -1)
     {
         perror("tcsetattr");
         exit(-1);
@@ -127,7 +127,7 @@ int openNonCanonical(char serialPort[50])
     return fd;
 }
 
-int bcc_2(unsigned char arr[MAX_DATA_SIZE], int n)
+int bcc_2( char arr[MAX_DATA_SIZE], int n)
 {
     // Resultant variable
     int xor_arr = 0;
@@ -145,12 +145,12 @@ int bcc_2(unsigned char arr[MAX_DATA_SIZE], int n)
     return xor_arr;
 }
 
-int createFrame(unsigned char *frame, unsigned char *controlByte, unsigned char *data, unsigned int length)
+int createFrame( char *frame, int controlByte,  char *data, unsigned int length)
 {
     frame[0] = F;
     frame[1] = A;
-    frame[2] = *controlByte;
-    frame[3] = *controlByte ^ A;
+    frame[2] = controlByte;
+    frame[3] = controlByte ^ A;
 
     for (int i = 0; i < length; i++)
     {
@@ -163,7 +163,7 @@ int createFrame(unsigned char *frame, unsigned char *controlByte, unsigned char 
     return 0;
 }
 
-int byteStuffing(unsigned char *frame, int length)
+int byteStuffing( char *frame, int length)
 {
 
     // allocates space for auxiliary buffer (length of the packet, plus 6 bytes for the frame header and tail)
@@ -201,7 +201,7 @@ int byteStuffing(unsigned char *frame, int length)
     return currentPos;
 }
 
-int byteDestuffing(unsigned char *frame, int length)
+int byteDestuffing( char *frame, int length)
 {
 
     // allocates space for the maximum possible frame length read (length of the data packet + bcc2, already with stuffing, plus the other 5 bytes in the frame)
@@ -261,4 +261,47 @@ int getFileSize(FILE *fp)
     rewind(fp);
 
     return lsize;
+}
+
+int createSupervisionFrame( char *frame, unsigned char controlField, int role)
+{
+
+    frame[0] = F;
+
+    if (role == TRANSMITTER)
+    {
+        if (controlField == C_SET || controlField == DISC)
+        {
+            frame[1] = A_T;
+        }
+        else if (controlField == C_UA || controlField == RR_0 || controlField == REJ_0 || controlField == RR_1 || controlField == REJ_1)
+        {
+            frame[1] = A_R;
+        }
+        else
+            return -1;
+    }
+    else if (role == RECEIVER)
+    {
+        if (controlField == C_SET || controlField == DISC)
+        {
+            frame[1] = A_R;
+        }
+        else if (controlField == C_UA || controlField == RR_0 || controlField == REJ_0 || controlField == RR_1 || controlField == REJ_1)
+        {
+            frame[1] = A_T;
+        }
+        else
+            return -1;
+    }
+    else
+        return -1;
+
+    frame[2] = controlField;
+
+    frame[3] = frame[1] ^ frame[2];
+
+    frame[4] = F;
+
+    return 0;
 }

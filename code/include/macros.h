@@ -26,6 +26,7 @@
 #define TRANSMITTER 1
 #define RECEIVER 0
 
+
 #define F 0x7E
 #define A 0x03
 #define S_0 0x00
@@ -40,6 +41,8 @@
 #define VTIME_VALUE 0
 #define VMIN_VALUE 1
 #define DISC 0x0B
+#define A_T 0x03  // A for commands sent by transmitter and answers sent by receiver
+#define A_R 0x01  // A for commands sent by receiver and anwers sent by transmitter
 
 #define ESCAPE_STUFFING 0x5D
 #define F_STUFFING 0x5E

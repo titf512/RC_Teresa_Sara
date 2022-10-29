@@ -7,9 +7,8 @@
 
 #include "macros.h"
 
-int alarmEnabled = FALSE;
-int alarmCount = 0;
-
+int alarmEnabled;
+int alarmCount;
 /**
  * Handles the alarm signal
  * @param signal Signal that is received
