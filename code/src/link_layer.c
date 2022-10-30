@@ -46,7 +46,7 @@ int llopen(LinkLayer connectionParameters)
     {
         return -1;
     }
-
+    alarmEnabled = TRUE;
     if (connectionParameters.role == TRANSMITTER)
     {
 
@@ -54,19 +54,27 @@ int llopen(LinkLayer connectionParameters)
 
         // Set alarm function handler
         (void)signal(SIGALRM, alarmHandler);
-
+      
         while (alarmCount < 3)
         {
             if (write(fd, codes, 5) < 0)
             {
                 return -1;
             }
-
+    
             int control_byte[2] = {C_UA, 0};
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
+
             ret = read_frame_header(fd, control_byte);
-            alarmEnabled = TRUE;
+
+            if(alarmEnabled==FALSE){
+                alarmEnabled = TRUE;
+            }else{
+                break;
+            }
+           
         }
+
         if (ret == -1)
         {
             return -1;
@@ -88,6 +96,7 @@ int llopen(LinkLayer connectionParameters)
             }
             else
                 return fd;
+           
         }
         else
         {

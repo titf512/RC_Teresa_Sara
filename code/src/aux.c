@@ -23,11 +23,12 @@ int read_frame_header(int fd, int control_byte[2])
     bool not_read = true;
     int index = 0;
 
-    while (not_read && alarmEnabled==FALSE)
+    while (not_read && alarmEnabled == TRUE)
     {
+   
         read(fd, buf, 1);
         printf("%d\n", buf[0]);
-
+        
         if (buf[0] == F && counter == 0)
         {
             flags[0] = F;
@@ -46,8 +47,9 @@ int read_frame_header(int fd, int control_byte[2])
             flags[2] = control_byte[index];
             counter++;
         }
-        else if ((buf[0] == (control_byte[index]  ^ A ))&& (flags[2] == control_byte[index] )&& (counter == 3))
+        else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (counter == 3))
         {
+
             flags[3] = control_byte[index] ^ A;
             not_read = false;
             read(fd, buf, 1);
@@ -60,6 +62,7 @@ int read_frame_header(int fd, int control_byte[2])
             counter = 0;
         }
     }
+
     return 0;
 }
 
@@ -81,7 +84,7 @@ int closeNonCanonical(int fd, struct termios *oldtio)
 
 int openNonCanonical(char serialPort[50])
 {
-    int fd = open(serialPort, O_RDWR | O_NOCTTY);
+    int fd = open(serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
 
     if (fd < 0)
     {
@@ -127,7 +130,7 @@ int openNonCanonical(char serialPort[50])
     return fd;
 }
 
-int bcc_2( char arr[MAX_DATA_SIZE], int n)
+int bcc_2(char arr[MAX_DATA_SIZE], int n)
 {
     // Resultant variable
     int xor_arr = 0;
@@ -145,7 +148,7 @@ int bcc_2( char arr[MAX_DATA_SIZE], int n)
     return xor_arr;
 }
 
-int createFrame( char *frame, int controlByte,  char *data, unsigned int length)
+int createFrame(char *frame, int controlByte, char *data, unsigned int length)
 {
     frame[0] = F;
     frame[1] = A;
@@ -163,7 +166,7 @@ int createFrame( char *frame, int controlByte,  char *data, unsigned int length)
     return 0;
 }
 
-int byteStuffing( char *frame, int length)
+int byteStuffing(char *frame, int length)
 {
 
     // allocates space for auxiliary buffer (length of the packet, plus 6 bytes for the frame header and tail)
@@ -201,7 +204,7 @@ int byteStuffing( char *frame, int length)
     return currentPos;
 }
 
-int byteDestuffing( char *frame, int length)
+int byteDestuffing(char *frame, int length)
 {
 
     // allocates space for the maximum possible frame length read (length of the data packet + bcc2, already with stuffing, plus the other 5 bytes in the frame)
@@ -242,11 +245,13 @@ int byteDestuffing( char *frame, int length)
     return currentPos;
 }
 
-int getOctectsNumber(int l1, int l2){
-    return 256*l2 +l1;
+int getOctectsNumber(int l1, int l2)
+{
+    return 256 * l2 + l1;
 }
 
-void getOctets (int fileSize, int *l1, int* l2){
+void getOctets(int fileSize, int *l1, int *l2)
+{
     *l1 = fileSize % 256;
     *l2 = fileSize / 256;
 }
@@ -263,7 +268,7 @@ int getFileSize(FILE *fp)
     return lsize;
 }
 
-int createSupervisionFrame( char *frame, unsigned char controlField, int role)
+int createSupervisionFrame(char *frame, unsigned char controlField, int role)
 {
 
     frame[0] = F;
