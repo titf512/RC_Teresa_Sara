@@ -11,55 +11,105 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
-#include "aux.h"
+#include "_aux.h"
 #include "link_layer.h"
 
-
-int read_frame_header(int fd, int control_byte[2])
+int read_frame_header(int fd, char control_byte[2], char* frame[MAX_SIZE_FRAME] ,int mode)
 {
     unsigned char flags[5];
-    unsigned char buf[BUFFERSIZE];
+    char buf[BUFFERSIZE];
     int counter = 0;
     bool not_read = true;
     int index = 0;
 
     while (not_read && alarmEnabled == TRUE)
     {
-   
-        read(fd, buf, 1);
-        printf("%d\n", buf[0]);
         
-        if (buf[0] == F && counter == 0)
+        if (mode == SUPERVISION)
         {
-            flags[0] = F;
-            counter++;
-        }
-        else if (buf[0] == A && flags[0] == F && counter == 1)
-        {
-            flags[1] = A;
-            counter++;
-        }
-        else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && flags[1] == A && counter == 2)
-        {
-            if (buf[0] == control_byte[1]){
-                index = 1;
-            }
-            flags[2] = control_byte[index];
-            counter++;
-        }
-        else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (counter == 3))
-        {
-
-            flags[3] = control_byte[index] ^ A;
-            not_read = false;
             read(fd, buf, 1);
-            printf("%d\n", buf[0]);
-            return index;
-        }
-        else
-        {
-            memset(flags, 0, 5);
-            counter = 0;
+            //printf("%d\n", buf[0]);
+
+            if (buf[0] == F && counter == 0)
+            {
+                flags[0] = F;
+                counter++;
+            }
+            else if (buf[0] == A && flags[0] == F && counter == 1)
+            {
+                flags[1] = A;
+                counter++;
+            }
+            else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && flags[1] == A && counter == 2)
+            {
+                if (buf[0] == control_byte[1])
+                {
+                    index = 1;
+                }
+                flags[2] = control_byte[index];
+                counter++;
+            }
+            else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (counter == 3))
+            {
+
+                flags[3] = control_byte[index] ^ A;
+                not_read = false;
+                read(fd, buf, 1);
+                // printf("%d\n", buf[0]);
+                return index;
+            }
+            else
+            {
+                memset(flags, 0, 5);
+                counter = 0;
+            }
+        }else if(mode == INFORMATION){
+
+            read(fd, buf, 1);
+            //printf("%d\n", buf[0]);
+
+            if (buf[0] == F && counter == 0)
+            {
+            
+                frame[0] = F;
+                counter++;
+            }
+            else if (buf[0] == A && frame[0] == F && counter == 1)
+            {
+                frame[1] = A;
+                counter++;
+            }
+            else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && frame[1] == A && counter == 2)
+            {
+                if (buf[0] == control_byte[1])
+                {
+                    index = 1;
+                }
+                frame[2] = control_byte[index];
+                counter++;
+            }
+            else if ((buf[0] == (control_byte[index] ^ A)) && (frame[2] == control_byte[index]) && (counter == 3))
+            {
+                frame[3] = control_byte[index] ^ A;
+                counter++;
+            }
+            else if (frame[3] == (control_byte[index] ^ A ))
+            {
+                if (buf[0] == F)
+                {
+            
+                    frame[counter] = F;
+                    counter++;
+                    return counter;
+                }
+                frame[counter] = buf[0];
+                counter++;
+            }
+            else
+            {
+                memset(frame, 0, MAX_SIZE_FRAME);
+                counter = 0;
+            }
         }
     }
 
@@ -130,22 +180,16 @@ int openNonCanonical(char serialPort[50])
     return fd;
 }
 
-int bcc_2(char arr[MAX_DATA_SIZE], int n)
+char bcc_2(char arr[MAX_DATA_SIZE], int n)
 {
-    // Resultant variable
-    int xor_arr = 0;
+    unsigned char bcc2 = arr[0];
 
-    // Iterating through every element in
-    // the array
-    for (int i = 0; i < n; i++)
+    for (int i = 1; i < n; i++)
     {
-
-        // Find XOR with the result
-        xor_arr = xor_arr ^ arr[i];
+        bcc2 = bcc2 ^ arr[i];
     }
 
-    // Return the XOR
-    return xor_arr;
+    return bcc2;
 }
 
 int createFrame(char *frame, int controlByte, char *data, unsigned int length)
@@ -161,6 +205,7 @@ int createFrame(char *frame, int controlByte, char *data, unsigned int length)
     }
 
     frame[length + 4] = bcc_2(data, length);
+    printf("AQUI:%d\n", bcc_2(data, length));
     frame[length + 5] = F;
 
     return 0;

@@ -2,7 +2,7 @@
 
 #include "application_layer.h"
 #include "macros.h"
-#include "aux.h"
+#include "_aux.h"
 #include <stdio.h>
 
 int buildDataPacket(char *packetBuffer, int sequenceNumber, unsigned char *dataBuffer, int dataLength)
@@ -182,7 +182,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         int fileSize = getFileSize(fp);
 
         int packetSize = buildControlPacket(C_START, packetBuffer, fileSize, filename);
-
+        
         // sends control start packet, to indicate the start of the file transfer
         if (llwrite(appLayer.fileDescriptor, packetBuffer, packetSize) < 0)
         {
@@ -198,9 +198,10 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
         while (1)
         {
+            
             // reads a data chunk from the file
             length_read = fread(data, sizeof(unsigned char), MAX_DATA_SIZE, fp);
-
+     
             if (length_read != MAX_DATA_SIZE)
             {
                 if (feof(fp))
@@ -269,7 +270,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             exit(-1);
         }
 
-        printf("\n---------------llopen done---------------\n\n");
+        printf("\n---------------llopen done---------------\n");
+        
 
         unsigned char packetBuffer[MAX_PACK_SIZE];
 
@@ -278,6 +280,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned char data[MAX_DATA_SIZE];
         char fileName[255];
 
+        //printf("READER:%d\n", linkLayer.frame[linkLayer.frameSize - 2]);
+      
         packetSize = llread(packetBuffer, appLayer.fileDescriptor);
 
         if (packetSize < 0)
@@ -300,7 +304,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             exit(-1);
         }
 
-        FILE *fp = fopen("pinguim1.gif", "w");
+        FILE *fp = fopen("pinguim-received.gif", "w");
         if (fp == NULL)
             exit(-1);
 

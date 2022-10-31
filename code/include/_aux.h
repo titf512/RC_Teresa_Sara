@@ -19,13 +19,13 @@
 struct termios oldtio;
 struct termios newtio;
 
-int read_frame_header(int fd, int control_byte[2]);
+read_frame_header(int fd, char control_byte[2], char* frame[MAX_SIZE_FRAME] , int mode);
 
 int closeNonCanonical(int fd, struct termios *oldtio);
 
 int openNonCanonical(char serialPort[50]);
 
-int bcc_2(char arr[MAX_DATA_SIZE], int n);
+char bcc_2(char arr[MAX_DATA_SIZE], int n);
 
 void getOctets(int fileSize, int *l1, int *l2);
 

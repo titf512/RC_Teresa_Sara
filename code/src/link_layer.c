@@ -13,9 +13,8 @@
 #include <signal.h>
 #include <stdio.h>
 #include "macros.h"
-#include "aux.h"
+#include "_aux.h"
 #include "link_layer.h"
-
 
 volatile int STOP = FALSE;
 
@@ -54,25 +53,27 @@ int llopen(LinkLayer connectionParameters)
 
         // Set alarm function handler
         (void)signal(SIGALRM, alarmHandler);
-      
+
         while (alarmCount < 3)
         {
             if (write(fd, codes, 5) < 0)
             {
                 return -1;
             }
-    
-            int control_byte[2] = {C_UA, 0};
+
+            char control_byte[2] = {C_UA, 0};
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
 
-            ret = read_frame_header(fd, control_byte);
+            ret = read_frame_header(fd, control_byte, linkLayer.frame, SUPERVISION);
 
-            if(alarmEnabled==FALSE){
+            if (alarmEnabled == FALSE)
+            {
                 alarmEnabled = TRUE;
-            }else{
+            }
+            else
+            {
                 break;
             }
-           
         }
 
         if (ret == -1)
@@ -85,9 +86,9 @@ int llopen(LinkLayer connectionParameters)
 
     else if (connectionParameters.role == RECEIVER)
     {
-        
-        int control_byte[2] = {C_SET, 0};
-        if (read_frame_header(fd, control_byte) == 0)
+
+        char control_byte[2] = {C_SET, 0};
+        if (read_frame_header(fd, control_byte,linkLayer.frame,SUPERVISION) == 0)
         {
             unsigned char codes[6] = {F, A, C_UA, A ^ C_UA, F};
             if (write(fd, codes, 5) < 0)
@@ -96,13 +97,13 @@ int llopen(LinkLayer connectionParameters)
             }
             else
                 return fd;
-           
         }
         else
         {
             return -1;
         }
-    }else
+    }
+    else
     {
         return -1;
     }
@@ -126,7 +127,7 @@ int llwrite(int fd, char *buf, int bufSize)
     {
         controlByte = S_1;
     }
-
+    alarmCount = 0;
     createFrame(linkLayer.frame, controlByte, buf, bufSize);
 
     (void)signal(SIGALRM, alarmHandler);
@@ -156,7 +157,7 @@ int llwrite(int fd, char *buf, int bufSize)
 
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
 
-            controlByteReceived = read_frame_header(fd, wantedBytes);
+            controlByteReceived = read_frame_header(fd, wantedBytes, linkLayer.frame, SUPERVISION);
 
             if (controlByteReceived >= 0)
             { // read_value é o índice do wantedByte que foi encontrado
@@ -165,7 +166,7 @@ int llwrite(int fd, char *buf, int bufSize)
                 break;
             }
         }
-
+        
         if (controlByteReceived == 0)
             dataSent = TRUE;
     }
@@ -174,8 +175,9 @@ int llwrite(int fd, char *buf, int bufSize)
         linkLayer.sequenceNumber = 1;
     else if (linkLayer.sequenceNumber == 1)
         linkLayer.sequenceNumber = 0;
-    else
+    else{
         return -1;
+    }
 
     return 0;
 }
@@ -192,23 +194,33 @@ int llread(unsigned char *packet, int fd)
     wantedBytes[0] = S_0;
     wantedBytes[1] = S_1;
     bool packetComplete = false;
+    unsigned int controlByte;
 
     while (!packetComplete)
     {
-        read_frame_header(fd, wantedBytes);
-
+        
+        linkLayer.frameSize = read_frame_header(fd, wantedBytes, linkLayer.frame, INFORMATION);
+     
         frameSize = byteDestuffing(linkLayer.frame, linkLayer.frameSize);
 
-        int controlByte;
         if (linkLayer.frame[2] == S_0)
+        {
             controlByte = 0;
+        }
+
         else if (linkLayer.frame[2] == S_1)
+        {
             controlByte = 1;
+        }
 
         unsigned char responseByte;
+        //printf("%d\n", linkLayer.frame[frameSize - 2]);
+        //printf("%dIIIIIIIIIIIIIIIII", bcc_2(&linkLayer.frame[DATA_BEGIN], frameSize - 6));
+
         // if bcc_2 is correct
         if (linkLayer.frame[frameSize - 2] == bcc_2(&linkLayer.frame[DATA_BEGIN], frameSize - 6))
         {
+
             // frame is duplicated
             if (controlByte != linkLayer.sequenceNumber)
             {
@@ -227,6 +239,7 @@ int llread(unsigned char *packet, int fd)
             // received new frame
             else
             {
+
                 // saves data
                 for (int i = 0; i < frameSize - 6; i++)
                 {
@@ -237,6 +250,7 @@ int llread(unsigned char *packet, int fd)
 
                 if (controlByte == 0)
                 {
+
                     responseByte = RR_1;
                     linkLayer.sequenceNumber = 1;
                 }
@@ -324,7 +338,7 @@ int llclose(int fd)
                 return -1;
 
             alarm(linkLayer.timeout);
-            ret = read_frame_header(fd, wantedBytes);
+            ret = read_frame_header(fd, wantedBytes,linkLayer.frame,SUPERVISION);
 
             if (ret >= 0)
             {
@@ -359,7 +373,7 @@ int llclose(int fd)
     else if (linkLayer.role == LlRx)
     {
 
-        if (read_frame_header(fd, wantedBytes) == -1)
+        if (read_frame_header(fd, wantedBytes,linkLayer.frame,SUPERVISION) == -1)
             return -1;
 
         printf("Received DISC frame\n");
@@ -381,7 +395,7 @@ int llclose(int fd)
 
             alarm(linkLayer.timeout);
 
-            ret = read_frame_header(fd, wantedBytes);
+            ret = read_frame_header(fd, wantedBytes,linkLayer.frame, SUPERVISION);
             alarmEnabled = TRUE;
 
             if (ret >= 0)
