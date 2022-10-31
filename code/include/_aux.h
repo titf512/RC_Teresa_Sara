@@ -25,7 +25,7 @@ int closeNonCanonical(int fd, struct termios *oldtio);
 
 int openNonCanonical(char serialPort[50]);
 
-char bcc_2(char arr[MAX_DATA_SIZE], int n);
+char bcc_2(char *arr, int n);
 
 void getOctets(int fileSize, int *l1, int *l2);
 

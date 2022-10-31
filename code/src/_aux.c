@@ -14,22 +14,22 @@
 #include "_aux.h"
 #include "link_layer.h"
 
-int read_frame_header(int fd, char control_byte[2], char *frame ,int mode)
+int read_frame_header(int fd, char control_byte[2], char *frame, int mode)
 {
     unsigned char flags[5];
     char buf[BUFFERSIZE];
     int i = 0;
- 
+
     bool not_read = true;
     int index = 0;
 
     while (not_read && alarmEnabled == TRUE)
     {
-        
+
         if (mode == SUPERVISION)
         {
             read(fd, buf, 1);
-            //printf("%d\n", buf[0]);
+            // printf("%d\n", buf[0]);
 
             if (buf[0] == F && i == 0)
             {
@@ -64,23 +64,23 @@ int read_frame_header(int fd, char control_byte[2], char *frame ,int mode)
                 memset(flags, 0, 5);
                 i = 0;
             }
-        }else if(mode == INFORMATION){
+        }
+        else if (mode == INFORMATION)
+        {
 
             read(fd, buf, 1);
-            //printf("%d\n", buf[0]);
+            // printf("%d\n", buf[0]);
 
             if (buf[0] == F && i == 0)
             {
-            
+
                 frame[0] = F;
                 i++;
-               
             }
             else if (buf[0] == A && frame[0] == F && i == 1)
             {
                 frame[1] = A;
                 i++;
-               
             }
             else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && frame[1] == A && i == 2)
             {
@@ -90,15 +90,13 @@ int read_frame_header(int fd, char control_byte[2], char *frame ,int mode)
                 }
                 frame[2] = control_byte[index];
                 i++;
-               
             }
             else if ((buf[0] == (control_byte[index] ^ A)) && (frame[2] == control_byte[index]) && (i == 3))
             {
                 frame[3] = control_byte[index] ^ A;
                 i++;
-              
             }
-            else if (frame[3] == (control_byte[index] ^ A ))
+            else if (frame[3] == (control_byte[index] ^ A))
             {
                 if (buf[0] == F)
                 {
@@ -184,7 +182,7 @@ int openNonCanonical(char serialPort[50])
     return fd;
 }
 
-char bcc_2(char arr[MAX_DATA_SIZE], int n)
+char bcc_2(char* arr, int n)
 {
     unsigned char bcc2 = arr[0];
 

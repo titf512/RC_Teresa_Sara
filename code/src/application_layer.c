@@ -280,10 +280,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned char data[MAX_DATA_SIZE];
         char fileName[255];
 
-        //printf("READER:%d\n", linkLayer.frame[linkLayer.frameSize - 2]);
-      
         packetSize = llread(packetBuffer, appLayer.fileDescriptor);
-
+        
         if (packetSize < 0)
         {
             exit(-1);
@@ -294,6 +292,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         // if start control packet was received
         if (packetBuffer[0] == C_START)
         {
+
             if (parseControlPacket(packetBuffer, &fileSize, fileName) < 0)
             {
                 exit(-1);
@@ -304,7 +303,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             exit(-1);
         }
 
-        FILE *fp = fopen("pinguim-received.gif", "w");
+        FILE *fp = fopen("penguin-received.gif", "w");
         if (fp == NULL)
             exit(-1);
 

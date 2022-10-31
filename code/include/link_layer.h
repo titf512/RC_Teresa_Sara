@@ -20,7 +20,7 @@ typedef struct
     int nRetransmissions;
     int timeout;
     unsigned int sequenceNumber;
-    char frame[BUFFERSIZE];
+    char frame[MAX_SIZE_FRAME];
     unsigned int frameSize;
 } LinkLayer;
 

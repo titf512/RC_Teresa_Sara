@@ -150,11 +150,12 @@ int llwrite(int fd, char *buf, int bufSize)
     {
         while (alarmCount < linkLayer.nRetransmissions)
         {
-            if (write(fd, linkLayer.frame, linkLayer.frameSize + 6) == -1)
+            printf("SIZE:%d", linkLayer.frameSize);
+            if (write(fd, linkLayer.frame, linkLayer.frameSize) == -1)
             {
                 return -1;
             }
-
+   
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
 
             controlByteReceived = read_frame_header(fd, wantedBytes, linkLayer.frame, SUPERVISION);
@@ -166,7 +167,7 @@ int llwrite(int fd, char *buf, int bufSize)
                 break;
             }
         }
-        
+
         if (controlByteReceived == 0)
             dataSent = TRUE;
     }
@@ -200,7 +201,8 @@ int llread(unsigned char *packet, int fd)
     {
         
         linkLayer.frameSize = read_frame_header(fd, wantedBytes, linkLayer.frame, INFORMATION);
-        frameSize = byteDestuffing(linkLayer.frame, linkLayer.frameSize);
+    
+        frameSize = byteDestuffing(linkLayer.frame, linkLayer.frameSize-5);
 
         if (linkLayer.frame[2] == S_0)
         {
@@ -213,16 +215,16 @@ int llread(unsigned char *packet, int fd)
         }
 
         unsigned char responseByte;
-        //printf("%d\n", linkLayer.frame[frameSize - 2]);
-        //printf("%dIIIIIIIIIIIIIIIII", bcc_2(&linkLayer.frame[DATA_BEGIN], frameSize - 6));
 
         // if bcc_2 is correct
         if (linkLayer.frame[frameSize - 2] == bcc_2(&linkLayer.frame[DATA_BEGIN], frameSize - 6))
         {
+       
 
             // frame is duplicated
             if (controlByte != linkLayer.sequenceNumber)
             {
+          
                 // sends confirmation and ignores data
                 if (controlByte == 0)
                 {
@@ -238,7 +240,7 @@ int llread(unsigned char *packet, int fd)
             // received new frame
             else
             {
-
+              
                 // saves data
                 for (int i = 0; i < frameSize - 6; i++)
                 {
@@ -263,6 +265,7 @@ int llread(unsigned char *packet, int fd)
         // if bcc2 is not correct
         else
         {
+            
             // frame is duplicated
             if (controlByte != linkLayer.sequenceNumber)
             {
