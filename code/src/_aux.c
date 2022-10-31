@@ -14,11 +14,12 @@
 #include "_aux.h"
 #include "link_layer.h"
 
-int read_frame_header(int fd, char control_byte[2], char* frame[MAX_SIZE_FRAME] ,int mode)
+int read_frame_header(int fd, char control_byte[2], char *frame ,int mode)
 {
     unsigned char flags[5];
     char buf[BUFFERSIZE];
-    int counter = 0;
+    int i = 0;
+ 
     bool not_read = true;
     int index = 0;
 
@@ -30,26 +31,26 @@ int read_frame_header(int fd, char control_byte[2], char* frame[MAX_SIZE_FRAME] 
             read(fd, buf, 1);
             //printf("%d\n", buf[0]);
 
-            if (buf[0] == F && counter == 0)
+            if (buf[0] == F && i == 0)
             {
                 flags[0] = F;
-                counter++;
+                i++;
             }
-            else if (buf[0] == A && flags[0] == F && counter == 1)
+            else if (buf[0] == A && flags[0] == F && i == 1)
             {
                 flags[1] = A;
-                counter++;
+                i++;
             }
-            else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && flags[1] == A && counter == 2)
+            else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && flags[1] == A && i == 2)
             {
                 if (buf[0] == control_byte[1])
                 {
                     index = 1;
                 }
                 flags[2] = control_byte[index];
-                counter++;
+                i++;
             }
-            else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (counter == 3))
+            else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (i == 3))
             {
 
                 flags[3] = control_byte[index] ^ A;
@@ -61,54 +62,57 @@ int read_frame_header(int fd, char control_byte[2], char* frame[MAX_SIZE_FRAME] 
             else
             {
                 memset(flags, 0, 5);
-                counter = 0;
+                i = 0;
             }
         }else if(mode == INFORMATION){
 
             read(fd, buf, 1);
             //printf("%d\n", buf[0]);
 
-            if (buf[0] == F && counter == 0)
+            if (buf[0] == F && i == 0)
             {
             
                 frame[0] = F;
-                counter++;
+                i++;
+               
             }
-            else if (buf[0] == A && frame[0] == F && counter == 1)
+            else if (buf[0] == A && frame[0] == F && i == 1)
             {
                 frame[1] = A;
-                counter++;
+                i++;
+               
             }
-            else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && frame[1] == A && counter == 2)
+            else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && frame[1] == A && i == 2)
             {
                 if (buf[0] == control_byte[1])
                 {
                     index = 1;
                 }
                 frame[2] = control_byte[index];
-                counter++;
+                i++;
+               
             }
-            else if ((buf[0] == (control_byte[index] ^ A)) && (frame[2] == control_byte[index]) && (counter == 3))
+            else if ((buf[0] == (control_byte[index] ^ A)) && (frame[2] == control_byte[index]) && (i == 3))
             {
                 frame[3] = control_byte[index] ^ A;
-                counter++;
+                i++;
+              
             }
             else if (frame[3] == (control_byte[index] ^ A ))
             {
                 if (buf[0] == F)
                 {
-            
-                    frame[counter] = F;
-                    counter++;
-                    return counter;
+                    frame[i] = F;
+                    i++;
+                    return i;
                 }
-                frame[counter] = buf[0];
-                counter++;
+                frame[i] = buf[0];
+                i++;
             }
             else
             {
                 memset(frame, 0, MAX_SIZE_FRAME);
-                counter = 0;
+                i = 0;
             }
         }
     }

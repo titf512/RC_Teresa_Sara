@@ -117,7 +117,7 @@ int llwrite(int fd, char *buf, int bufSize)
 
     unsigned char controlByte;
     bool dataSent = FALSE;
-    int wantedBytes[2];
+    char wantedBytes[2];
 
     if (linkLayer.sequenceNumber == 0)
     {
@@ -190,7 +190,7 @@ int sequenceNr = 0;
 int llread(unsigned char *packet, int fd)
 {
     int frameSize;
-    int wantedBytes[2];
+    char wantedBytes[2];
     wantedBytes[0] = S_0;
     wantedBytes[1] = S_1;
     bool packetComplete = false;
@@ -200,7 +200,6 @@ int llread(unsigned char *packet, int fd)
     {
         
         linkLayer.frameSize = read_frame_header(fd, wantedBytes, linkLayer.frame, INFORMATION);
-     
         frameSize = byteDestuffing(linkLayer.frame, linkLayer.frameSize);
 
         if (linkLayer.frame[2] == S_0)
@@ -316,7 +315,7 @@ int llread(unsigned char *packet, int fd)
 ////////////////////////////////////////////////
 int llclose(int fd)
 {
-    int wantedBytes[2] = {DISC, 0};
+    char wantedBytes[2] = {DISC, 0};
 
     if (linkLayer.role == LlTx)
     {
