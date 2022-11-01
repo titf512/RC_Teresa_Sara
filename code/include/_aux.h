@@ -19,7 +19,7 @@
 struct termios oldtio;
 struct termios newtio;
 
-int read_frame_header(int fd, char control_byte[2], char *frame, int mode);
+int read_frame_header(int fd, char *control_byte, char *frame, int mode);
 
 int closeNonCanonical(int fd, struct termios *oldtio);
 

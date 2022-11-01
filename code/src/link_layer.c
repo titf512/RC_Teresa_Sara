@@ -150,7 +150,6 @@ int llwrite(int fd, char *buf, int bufSize)
     {
         while (alarmCount < linkLayer.nRetransmissions)
         {
-            printf("SIZE:%d", linkLayer.frameSize);
             if (write(fd, linkLayer.frame, linkLayer.frameSize) == -1)
             {
                 return -1;
@@ -160,6 +159,14 @@ int llwrite(int fd, char *buf, int bufSize)
 
             controlByteReceived = read_frame_header(fd, wantedBytes, linkLayer.frame, SUPERVISION);
 
+            if (alarmEnabled == FALSE)
+            {
+                alarmEnabled = TRUE;
+            }
+            else
+            {
+                break;
+            }
             if (controlByteReceived >= 0)
             { // read_value é o índice do wantedByte que foi encontrado
                 // Cancels alarm
@@ -168,9 +175,13 @@ int llwrite(int fd, char *buf, int bufSize)
             }
         }
 
+        sleep(1);
+
         if (controlByteReceived == 0)
             dataSent = TRUE;
     }
+
+   
 
     if (linkLayer.sequenceNumber == 0)
         linkLayer.sequenceNumber = 1;
@@ -318,15 +329,21 @@ int llread(unsigned char *packet, int fd)
 ////////////////////////////////////////////////
 int llclose(int fd)
 {
-    char wantedBytes[2] = {DISC, 0};
+    char wantedBytes[2];
+    wantedBytes[0] = DISC;
+    wantedBytes[1] = 0;
 
-    if (linkLayer.role == LlTx)
+    if (linkLayer.role == TRANSMITTER)
     {
 
         // creates DISC frame
         if (createSupervisionFrame(linkLayer.frame, DISC, TRANSMITTER) != 0)
             return -1;
-
+        linkLayer.frame[0] = F;
+        linkLayer.frame[1] = A;
+        linkLayer.frame[2] = DISC;
+        linkLayer.frame[3] = A^DISC;
+        linkLayer.frame[4] = F;
         printf("Sent DISC frame\n");
 
         int ret = -1;
@@ -335,12 +352,23 @@ int llclose(int fd)
 
         while (alarmCount < 3)
         {
+           
             // send DISC frame to receiver
             if (write(fd, linkLayer.frame, 5) == -1)
                 return -1;
-
+       
             alarm(linkLayer.timeout);
+            
             ret = read_frame_header(fd, wantedBytes,linkLayer.frame,SUPERVISION);
+
+            if (alarmEnabled == FALSE)
+            {
+                alarmEnabled = TRUE;
+            }
+            else
+            {
+                break;
+            }
 
             if (ret >= 0)
             {
@@ -350,6 +378,8 @@ int llclose(int fd)
             }
         }
 
+        sleep(1);
+
         if (ret == -1)
         {
             closeNonCanonical(fd, &oldtio);
@@ -358,23 +388,28 @@ int llclose(int fd)
         }
 
         printf("Received DISC frame\n");
+        
 
         // creates UA frame
         if (createSupervisionFrame(linkLayer.frame, C_UA, TRANSMITTER) != 0)
             return -1;
-
-        // send DISC frame to receiver
+        linkLayer.frame[0] = F;
+        linkLayer.frame[1] = A;
+        linkLayer.frame[2] = C_UA;
+        linkLayer.frame[3] = A ^ C_UA;
+        linkLayer.frame[4] = F;
+        // send UA frame to receiver
         if (write(fd, linkLayer.frame, 5) == -1)
             return -1;
-
+        printf("C_UA%d", linkLayer.frame[2]);
         printf("Sent UA frame\n");
+
 
         return 0;
     }
 
-    else if (linkLayer.role == LlRx)
+    else if (linkLayer.role == RECEIVER)
     {
-
         if (read_frame_header(fd, wantedBytes,linkLayer.frame,SUPERVISION) == -1)
             return -1;
 
@@ -385,21 +420,32 @@ int llclose(int fd)
 
         printf("Sent DISC frame\n");
 
+        (void)signal(SIGALRM, alarmHandler);
+
         int ret = -1;
         alarmCount = 0;
         wantedBytes[0] = C_UA;
 
-        while (alarmCount < 3)
+        while (alarmCount < linkLayer.nRetransmissions)
         {
+        
             // send DISC frame to receiver
             if (write(fd, linkLayer.frame, 5) == -1)
                 return -1;
-
+    
             alarm(linkLayer.timeout);
 
+           
             ret = read_frame_header(fd, wantedBytes,linkLayer.frame, SUPERVISION);
-            alarmEnabled = TRUE;
 
+            if (alarmEnabled == FALSE)
+            {
+                alarmEnabled = TRUE;
+            }
+            else
+            {
+                break;
+            }
             if (ret >= 0)
             {
                 // Cancels alarm
@@ -407,7 +453,7 @@ int llclose(int fd)
                 break;
             }
         }
-
+  
         if (ret == -1)
         {
             closeNonCanonical(fd, &oldtio);
