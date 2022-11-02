@@ -38,7 +38,7 @@ int llopen(LinkLayer connectionParameters)
     strcpy(linkLayer.frame, connectionParameters.frame);
     linkLayer.frameSize = connectionParameters.frameSize;
 
-    int ret = -1;
+    int controlByte = -1;
     int fd;
 
     if ((fd = openNonCanonical(linkLayer.serialPort)) == -1)
@@ -54,7 +54,7 @@ int llopen(LinkLayer connectionParameters)
         // Set alarm function handler
         (void)signal(SIGALRM, alarmHandler);
 
-        while (alarmCount < 3)
+        while (alarmCount < NUM_RETR)
         {
             if (write(fd, codes, 5) < 0)
             {
@@ -64,7 +64,7 @@ int llopen(LinkLayer connectionParameters)
             char control_byte[2] = {C_UA, 0};
             alarm(linkLayer.timeout); // Set alarm to be triggered in 3s
 
-            ret = read_frame_header(fd, control_byte, linkLayer.frame, SUPERVISION);
+            controlByte = read_frame_header(fd, control_byte, linkLayer.frame, SUPERVISION);
 
             if (alarmEnabled == FALSE)
             {
@@ -76,7 +76,7 @@ int llopen(LinkLayer connectionParameters)
             }
         }
 
-        if (ret == -1)
+        if (alarmCount == NUM_RETR || controlByte == -1)
         {
             return -1;
         }
@@ -309,7 +309,11 @@ int llread(unsigned char *packet, int fd)
             }
         }
 
-        createSupervisionFrame(linkLayer.frame, responseByte, RECEIVER);
+        linkLayer.frame[0] = F;
+        linkLayer.frame[1] = A;
+        linkLayer.frame[2] = responseByte;
+        linkLayer.frame[3] = A ^ responseByte;
+        linkLayer.frame[4] = F;
 
         // send supervision frame
         if (write(fd, linkLayer.frame, 5) == -1)
@@ -337,8 +341,6 @@ int llclose(int fd)
     {
 
         // creates DISC frame
-        if (createSupervisionFrame(linkLayer.frame, DISC, TRANSMITTER) != 0)
-            return -1;
         linkLayer.frame[0] = F;
         linkLayer.frame[1] = A;
         linkLayer.frame[2] = DISC;
@@ -350,7 +352,7 @@ int llclose(int fd)
 
         alarmCount = 0;
 
-        while (alarmCount < 3)
+        while (alarmCount < NUM_RETR)
         {
            
             // send DISC frame to receiver
@@ -391,8 +393,6 @@ int llclose(int fd)
         
 
         // creates UA frame
-        if (createSupervisionFrame(linkLayer.frame, C_UA, TRANSMITTER) != 0)
-            return -1;
         linkLayer.frame[0] = F;
         linkLayer.frame[1] = A;
         linkLayer.frame[2] = C_UA;
@@ -416,7 +416,11 @@ int llclose(int fd)
         printf("Received DISC frame\n");
 
         // creates DISC frame
-        createSupervisionFrame(linkLayer.frame, DISC, RECEIVER);
+        linkLayer.frame[0] = F;
+        linkLayer.frame[1] = A;
+        linkLayer.frame[2] = DISC;
+        linkLayer.frame[3] = A ^ DISC;
+        linkLayer.frame[4] = F;
 
         printf("Sent DISC frame\n");
 

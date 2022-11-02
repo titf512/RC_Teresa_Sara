@@ -33,8 +33,6 @@ int getOctectsNumber(int l1, int l2);
 
 int createFrame(char *frame, int controlByte, char *data, unsigned int length);
 
-int createSupervisionFrame(char *frame, unsigned char controlField, int role);
-
 int byteStuffing(char *frame, int length);
 
 int byteDestuffing( char *frame, int length);

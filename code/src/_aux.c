@@ -210,7 +210,7 @@ int createFrame(char *frame, int controlByte, char *data, unsigned int length)
     }
 
     frame[length + 4] = bcc_2(data, length);
-    printf("AQUI:%d\n", bcc_2(data, length));
+    printf("BBC2:%d\n", bcc_2(data, length));
     frame[length + 5] = F;
 
     return 0;
@@ -316,47 +316,4 @@ int getFileSize(FILE *fp)
     rewind(fp);
 
     return lsize;
-}
-
-int createSupervisionFrame(char *frame, unsigned char controlField, int role)
-{
-
-    frame[0] = F;
-
-    if (role == TRANSMITTER)
-    {
-        if (controlField == C_SET || controlField == DISC)
-        {
-            frame[1] = A_T;
-        }
-        else if (controlField == C_UA || controlField == RR_0 || controlField == REJ_0 || controlField == RR_1 || controlField == REJ_1)
-        {
-            frame[1] = A_R;
-        }
-        else
-            return -1;
-    }
-    else if (role == RECEIVER)
-    {
-        if (controlField == C_SET || controlField == DISC)
-        {
-            frame[1] = A_R;
-        }
-        else if (controlField == C_UA || controlField == RR_0 || controlField == REJ_0 || controlField == RR_1 || controlField == REJ_1)
-        {
-            frame[1] = A_T;
-        }
-        else
-            return -1;
-    }
-    else
-        return -1;
-
-    frame[2] = controlField;
-
-    frame[3] = frame[1] ^ frame[2];
-
-    frame[4] = F;
-
-    return 0;
 }
