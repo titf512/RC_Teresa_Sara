@@ -34,14 +34,14 @@ int main(int argc, char *argv[])
            serialPort,
            role,
            BAUDRATE,
-           N_TRIES,
+           NUM_RETR,
            TIMEOUT,
            filename);
 
     alarmEnabled = FALSE;
     alarmCount = 0;
   
-    applicationLayer(serialPort, role, BAUDRATE, N_TRIES, TIMEOUT, filename);
+    applicationLayer(serialPort, role, BAUDRATE, NUM_RETR, TIMEOUT, filename);
 
     return 0;
 }

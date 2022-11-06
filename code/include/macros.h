@@ -3,7 +3,8 @@
 #include <termio.h>
 
 #define BAUDRATE B38400 // 38400 is the normal value
-#define N_TRIES 3
+#define NUM_RETR 3
+#define TIMEOUT 3
 #define FALSE 0
 #define TRUE 1
 #define BUFFERSIZE 256
@@ -20,8 +21,7 @@
 #define INFORMATION 1
 #define DATA_BEGIN 4
 
-#define NUM_RETR 3
-#define TIMEOUT 3
+
 
 #define TRANSMITTER 1
 #define RECEIVER 0

@@ -174,24 +174,28 @@ int llwrite(int fd, char *buf, int bufSize)
                 break;
             }
         }
-
+        printf("controlByte %d\n", controlByteReceived);
         sleep(1);
 
         if (controlByteReceived == 0)
             dataSent = TRUE;
     }
 
-   
+    printf("sequence number %d\n", linkLayer.sequenceNumber);
 
-    if (linkLayer.sequenceNumber == 0)
+    if (linkLayer.sequenceNumber == 0){
         linkLayer.sequenceNumber = 1;
-    else if (linkLayer.sequenceNumber == 1)
+        return 0;
+    }
+
+    else if (linkLayer.sequenceNumber == 1){
         linkLayer.sequenceNumber = 0;
+        return 0;
+    }
     else{
         return -1;
     }
-
-    return 0;
+    return -1;
 }
 
 ////////////////////////////////////////////////
@@ -312,9 +316,9 @@ int llread(unsigned char *packet, int fd)
         linkLayer.frame[0] = F;
         linkLayer.frame[1] = A;
         linkLayer.frame[2] = responseByte;
-        linkLayer.frame[3] = A ^ responseByte;
+        linkLayer.frame[3] = (A ^ responseByte);
         linkLayer.frame[4] = F;
-
+     
         // send supervision frame
         if (write(fd, linkLayer.frame, 5) == -1)
         {

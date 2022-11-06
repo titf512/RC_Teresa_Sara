@@ -16,7 +16,7 @@
 
 int read_frame_header(int fd, char *control_byte, char *frame, int mode)
 {
-    unsigned char flags[5];
+    char flags[5];
     char buf[BUFFERSIZE];
     int i = 0;
    
@@ -29,35 +29,40 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
 
         if (mode == SUPERVISION)
         {
-            read(fd, buf, 1);
-            //printf("%d\n", buf[0]);
+            if (read(fd, buf, 1)<=0){
+                continue;
+            }
+
+            // printf("%d\n", buf[0]);
 
             if (buf[0] == F && i == 0)
             {
-               
+  
                 flags[0] = F;
                 i++;
             }
             else if (buf[0] == A && flags[0] == F && i == 1)
             {
-
+                printf("A%d\n", buf[0]);
                 flags[1] = A;
                 i++;
             }
             else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && flags[1] == A && i == 2)
             {
-               
 
+                printf("C%x\n", control_byte[index]);
                 if (buf[0] == control_byte[1])
-                {  
+                {
+                    printf("BCC%x\n", buf[0]);
                     index = 1;
                 }
                 flags[2] = control_byte[index];
                 i++;
+       
             }
             else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (i == 3))
             {
-        
+                printf("BCC%d\n", buf[0]);
                 flags[3] = control_byte[index] ^ A;
                 not_read = false;
                 read(fd, buf, 1);
@@ -72,21 +77,27 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
         else if (mode == INFORMATION)
         {
 
-            read(fd, buf, 1);
+            if (read(fd, buf, 1) <= 0)
+            {
+                continue;
+            }
             // printf("%d\n", buf[0]);
 
             if (buf[0] == F && i == 0)
             {
+               
                 frame[0] = F;
                 i++;
             }
             else if (buf[0] == A && frame[0] == F && i == 1)
             {
+                printf("%d\n", buf[0]);
                 frame[1] = A;
                 i++;
             }
             else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && frame[1] == A && i == 2)
             {
+                printf("%d\n", buf[0]);
                 if (buf[0] == control_byte[1])
                 {
                     index = 1;
@@ -96,13 +107,16 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
             }
             else if ((buf[0] == (control_byte[index] ^ A)) && (frame[2] == control_byte[index]) && (i == 3))
             {
+                printf("%d\n", buf[0]);
                 frame[3] = control_byte[index] ^ A;
                 i++;
             }
             else if (frame[3] == (control_byte[index] ^ A))
             {
+                printf("%d\n", buf[0]);
                 if (buf[0] == F)
                 {
+                    printf("%d\n", buf[0]);
                     frame[i] = F;
                     i++;
                     return i;
@@ -118,7 +132,7 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
         }
     }
 
-    return 0;
+    return -1;
 }
 
 int closeNonCanonical(int fd, struct termios *oldtio)
