@@ -174,7 +174,6 @@ int llwrite(int fd, char *buf, int bufSize)
                 break;
             }
         }
-        printf("controlByte %d\n", controlByteReceived);
         sleep(1);
 
         if (controlByteReceived == 0)
@@ -405,7 +404,6 @@ int llclose(int fd)
         // send UA frame to receiver
         if (write(fd, linkLayer.frame, 5) == -1)
             return -1;
-        printf("C_UA%d", linkLayer.frame[2]);
         printf("Sent UA frame\n");
 
 

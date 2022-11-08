@@ -2,7 +2,7 @@
 #define _MACROS_H_
 #include <termio.h>
 
-#define BAUDRATE B38400 // 38400 is the normal value
+#define BAUDRATE B9600 // 38400 is the normal value
 #define NUM_RETR 3
 #define TIMEOUT 3
 #define FALSE 0

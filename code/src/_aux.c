@@ -32,28 +32,22 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
             if (read(fd, buf, 1)<=0){
                 continue;
             }
-
             // printf("%d\n", buf[0]);
 
             if (buf[0] == F && i == 0)
             {
-  
                 flags[0] = F;
                 i++;
             }
             else if (buf[0] == A && flags[0] == F && i == 1)
             {
-                printf("A%d\n", buf[0]);
                 flags[1] = A;
                 i++;
             }
             else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && flags[1] == A && i == 2)
             {
-
-                printf("C%x\n", control_byte[index]);
                 if (buf[0] == control_byte[1])
                 {
-                    printf("BCC%x\n", buf[0]);
                     index = 1;
                 }
                 flags[2] = control_byte[index];
@@ -62,7 +56,6 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
             }
             else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (i == 3))
             {
-                printf("BCC%d\n", buf[0]);
                 flags[3] = control_byte[index] ^ A;
                 not_read = false;
                 read(fd, buf, 1);
@@ -85,19 +78,16 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
 
             if (buf[0] == F && i == 0)
             {
-               
                 frame[0] = F;
                 i++;
             }
             else if (buf[0] == A && frame[0] == F && i == 1)
             {
-                printf("%d\n", buf[0]);
                 frame[1] = A;
                 i++;
             }
             else if ((buf[0] == control_byte[0] || buf[0] == control_byte[1]) && frame[1] == A && i == 2)
             {
-                printf("%d\n", buf[0]);
                 if (buf[0] == control_byte[1])
                 {
                     index = 1;
@@ -107,16 +97,13 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
             }
             else if ((buf[0] == (control_byte[index] ^ A)) && (frame[2] == control_byte[index]) && (i == 3))
             {
-                printf("%d\n", buf[0]);
                 frame[3] = control_byte[index] ^ A;
                 i++;
             }
             else if (frame[3] == (control_byte[index] ^ A))
             {
-                printf("%d\n", buf[0]);
                 if (buf[0] == F)
                 {
-                    printf("%d\n", buf[0]);
                     frame[i] = F;
                     i++;
                     return i;
@@ -224,7 +211,7 @@ int createFrame(char *frame, int controlByte, char *data, unsigned int length)
     }
 
     frame[length + 4] = bcc_2(data, length);
-    printf("BBC2:%d\n", bcc_2(data, length));
+    //printf("BBC2:%d\n", bcc_2(data, length));
     frame[length + 5] = F;
 
     return 0;

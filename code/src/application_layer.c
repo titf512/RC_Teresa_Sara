@@ -1,9 +1,12 @@
 // Application layer protocol implementation
-
+#include <sys/times.h>
+#include <sys/time.h>
 #include "application_layer.h"
 #include "macros.h"
 #include "_aux.h"
 #include <stdio.h>
+
+AppLayer appLayer;
 
 int buildDataPacket(char *packetBuffer, int sequenceNumber, unsigned char *dataBuffer, int dataLength)
 {
@@ -133,8 +136,6 @@ int parseDataPacket(unsigned char *packetBuffer, unsigned char *data, int *seque
     return 0;
 }
 
-AppLayer appLayer;
-
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
@@ -260,7 +261,9 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
 
     else if (connectionParameters.role == RECEIVER)
     {
-        int numBitsReceived = 0;
+
+        struct timeval start, end;
+        int bitsReceived = 0;
         // fills appLayer fields
         appLayer.status = RECEIVER;
 
@@ -280,6 +283,11 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned char data[MAX_DATA_SIZE];
         char fileName[255];
 
+        /* Mark beginning time */
+        gettimeofday(&start, NULL);
+
+         usleep(250000);
+
         packetSize = llread(packetBuffer, appLayer.fileDescriptor);
         
         if (packetSize < 0)
@@ -287,7 +295,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             exit(-1);
         }
 
-        numBitsReceived += packetSize * 8;
+        bitsReceived += packetSize * 8;
 
         // if start control packet was received
         if (packetBuffer[0] == C_START)
@@ -318,7 +326,7 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 exit(-1);
             }
 
-            numBitsReceived += packetSize * 8;
+            bitsReceived += packetSize * 8;
 
             // received data packet
             if (packetBuffer[0] == C_DATA)
@@ -351,6 +359,18 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
                 break;
             }
         }
+
+        gettimeofday(&end, NULL);
+        double timeSpent = (end.tv_sec - start.tv_sec) * 1e6;
+        timeSpent = (timeSpent + (end.tv_usec - start.tv_usec)) * 1e-6;
+
+        printf("bitsReceived =  %d\n", bitsReceived);
+        printf("timeSpent =  %lf\n", timeSpent);
+        double R = bitsReceived / timeSpent;
+        double baudRate = 9600.0;
+        double S = R / baudRate;
+
+        printf("\nEstatitica da eficiencia S = %lf\n\n", S);
 
         if (getFileSize(fp) != fileSize)
         {
