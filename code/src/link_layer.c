@@ -1,5 +1,3 @@
-// Link layer protocol implementation
-
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,10 +22,13 @@ volatile int STOP = FALSE;
 LinkLayer linkLayer;
 int sequenceNr = 0;
 
-////////////////////////////////////////////////
-// LLOPEN
-////////////////////////////////////////////////
-
+/**
+ * @brief Receiver: reads the opening frame with control SET and if correct replies with the control flag UA
+ *        Transmiter: sends the opening frame with control SET and if correct receives confirmation from the receiver with the control flag UA
+ *
+ * @param connectionParameters
+ * @return int
+ */
 int llopen(LinkLayer connectionParameters)
 {
     linkLayer.baudRate = connectionParameters.baudRate;
@@ -110,9 +111,15 @@ int llopen(LinkLayer connectionParameters)
     }
 }
 
-////////////////////////////////////////////////
-// LLWRITE
-////////////////////////////////////////////////
+/**
+ * @brief Transmitter: builds I-frames with the data packet and sends it to the receiver. 
+ *        According to the answering frame from the receiver, it can resend the frame or move on to the next.
+ *
+ * @param fd
+ * @param buf
+ * @param bufSize
+ * @return int
+ */
 int llwrite(int fd, char *buf, int bufSize)
 {
 
@@ -203,9 +210,17 @@ int llwrite(int fd, char *buf, int bufSize)
     return -1;
 }
 
-////////////////////////////////////////////////
-// LLREAD
-////////////////////////////////////////////////
+/**
+ * @brief Receiver: reads the I-frame sent from the transmitter. Depending on the frame read it canexecute in four different ways:
+ *        - if the BCC2 is correct and the frame is not duplicated, it saves the data and answers with flag RR
+ *        - if the BBC2 is correct but the frame is duplicated, it ignores the data and answers with flag RR
+ *        - if the BBC2 is incorrect and the frame is not duplicated, it discards the data and answers with the flag REJ
+ *        - if the BBC2 is incorrect but the frame is duplicated, it ignores the data and answers with flag RR
+ *
+ * @param packet
+ * @param fd
+ * @return int
+ */
 int llread(unsigned char *packet, int fd)
 {
     int frameSize;
@@ -258,7 +273,6 @@ int llread(unsigned char *packet, int fd)
             // received new frame
             else
             {
-              
                 // saves data
                 for (int i = 0; i < frameSize - 6; i++)
                 {
@@ -283,7 +297,6 @@ int llread(unsigned char *packet, int fd)
         // if bcc2 is not correct
         else
         {
-            
             // frame is duplicated
             if (controlByte != linkLayer.sequenceNumber)
             {
@@ -322,22 +335,26 @@ int llread(unsigned char *packet, int fd)
         linkLayer.frame[3] = (A ^ responseByte);
         linkLayer.frame[4] = F;
      
-        // send supervision frame
+        // sends supervision frame
         if (write(fd, linkLayer.frame, 5) == -1)
         {
             closeNonCanonical(fd, &oldtio);
             return -1;
         }
 
-        printf("Response frame: (%x)\n", linkLayer.frame[2]);
+        printf("Response frame: (%x)\n", linkLayer.frame[2]); // prints the answering C flag
     }
 
     return (frameSize - 6); // number of bytes of the data packet read
 }
 
-////////////////////////////////////////////////
-// LLCLOSE
-////////////////////////////////////////////////
+/**
+ * @brief Transmitter: sends DISC flag, waits to receive an answering DISC from receiver and returns an UA flag.
+ *        Receiver: receives DISC flag from transmitter, sends a DISC frame and, finnaly, confirms that it has received an UA flag.
+ * 
+ * @param fd 
+ * @return int 
+ */
 int llclose(int fd)
 {
     char wantedBytes[2];
