@@ -14,8 +14,6 @@
 #include "_aux.h"
 #include "link_layer.h"
 
-volatile int STOP = FALSE;
-
 // MISC
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
