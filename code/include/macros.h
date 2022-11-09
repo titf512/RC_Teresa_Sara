@@ -2,29 +2,26 @@
 #define _MACROS_H_
 #include <termio.h>
 
-#define BAUDRATE B9600 // 38400 is the normal value
+#define BAUDRATE B9600 
 #define NUM_RETR 3
 #define TIMEOUT 3
 #define FALSE 0
 #define TRUE 1
 #define BUFFERSIZE 256
 
-// ---- macros for data link layer ----
-#define MAX_DATA_SIZE 1024                             // max size of a data packet
-#define MAX_PACK_SIZE (MAX_DATA_SIZE + 4)              // max size of a data packet + 4 bytes for packet head
-#define MAX_SIZE (MAX_PACK_SIZE + 6)                   // max size of data in a frame, + 4 bytes fot packet head, + 6 bytes for frame header and tail
-#define MAX_SIZE_FRAME (((MAX_PACK_SIZE + 1) * 2) + 5) // max size of a frame, with byte stuffing considered ((1029 * 2) + 5)
-                                                       // 1029 -> all bytes that can suffer byte stuffing (and therefore be "duplicated"), that is, the packet and the BCC2
-                                                       // 5 -> the bytes that won't (for sure) suffer byte stuffing (flags, bcc1, address and control bytes)
+#define TRANSMITTER 1
+#define RECEIVER 0
 
 #define SUPERVISION 0
 #define INFORMATION 1
 #define DATA_BEGIN 4
 
-
-
-#define TRANSMITTER 1
-#define RECEIVER 0
+// ---- macros for data link layer ----
+#define MAX_DATA_SIZE 1024                             // max size of a data packet
+#define MAX_PACK_SIZE (MAX_DATA_SIZE + 4)              // max size of a data packet and head
+#define MAX_SIZE (MAX_PACK_SIZE + 6)                   // max size of data in a frame, head, header and tail
+#define MAX_SIZE_FRAME (((MAX_PACK_SIZE + 1) * 2) + 5) // max size of a frame with byte stuffing 
+                                                       // (MAX_PACK_SIZE + 1)=1029 -> all bytes that can suffer byte stuffing -the packet and the BCC2                                                // 5 -> the bytes that won't (for sure) suffer byte stuffing (flags, bcc1, address and control bytes)
 
 
 #define F 0x7E
@@ -47,8 +44,6 @@
 #define ESCAPE_STUFFING 0x5D
 #define F_STUFFING 0x5E
 #define ESCAPE 0x7D
-
-#define _POSIX_SOURCE 1 // POSIX compliant source
 
 // ---- macros for application layer ----
 
