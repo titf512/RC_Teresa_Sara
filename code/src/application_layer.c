@@ -8,6 +8,15 @@
 
 AppLayer appLayer;
 
+/**
+ * @brief builds the information packet that goes into the I-frame
+ * 
+ * @param packetBuffer 
+ * @param sequenceNumber 
+ * @param dataBuffer 
+ * @param dataLength 
+ * @return int 
+ */
 int buildDataPacket(char *packetBuffer, int sequenceNumber, unsigned char *dataBuffer, int dataLength)
 {
 
@@ -26,7 +35,15 @@ int buildDataPacket(char *packetBuffer, int sequenceNumber, unsigned char *dataB
 
     return dataLength + 4;
 }
-
+/**
+ * @brief builds the control packet that goes into I-frame
+ * 
+ * @param controlByte 
+ * @param packetBuffer 
+ * @param fileSize 
+ * @param fileName 
+ * @return int 
+ */
 int buildControlPacket(unsigned char controlByte, char *packetBuffer, int fileSize, const char *fileName)
 {
 
@@ -68,7 +85,14 @@ int buildControlPacket(unsigned char controlByte, char *packetBuffer, int fileSi
 
     return 3 + length + 2 + strlen(fileName) + 1; // total length of the packet
 }
-
+/**
+ * @brief reads the control information from the I-frame (either the first or last I-frame)
+ * 
+ * @param packetBuffer 
+ * @param fileSize 
+ * @param fileName 
+ * @return int 
+ */
 int parseControlPacket(unsigned char *packetBuffer, int *fileSize, char *fileName)
 {
 
@@ -115,7 +139,14 @@ int parseControlPacket(unsigned char *packetBuffer, int *fileSize, char *fileNam
 
     return 0;
 }
-
+/**
+ * @brief reads the information from the I-frame and, if valid, saves it in the array *data*
+ *
+ * @param packetBuffer
+ * @param data
+ * @param sequenceNumber
+ * @return int
+ */
 int parseDataPacket(unsigned char *packetBuffer, unsigned char *data, int *sequenceNumber)
 {
 
@@ -135,7 +166,16 @@ int parseDataPacket(unsigned char *packetBuffer, unsigned char *data, int *seque
 
     return 0;
 }
-
+/**
+ * @brief main function that controls all the operations in receiving and sending the data.
+ * 
+ * @param serialPort 
+ * @param role 
+ * @param baudRate 
+ * @param nTries 
+ * @param timeout 
+ * @param filename 
+ */
 void applicationLayer(const char *serialPort, const char *role, int baudRate,
                       int nTries, int timeout, const char *filename)
 {
