@@ -14,25 +14,33 @@
 #include "_aux.h"
 #include "link_layer.h"
 
+/**
+ * @brief Reads the information and supervision frames
+ *
+ * @param fd
+ * @param control_byte
+ * @param frame
+ * @param mode
+ * @return int
+ */
 int read_frame_header(int fd, char *control_byte, char *frame, int mode)
 {
     char flags[5];
     char buf[BUFFERSIZE];
     int i = 0;
-   
 
     bool not_read = true;
     int index = 0;
 
     while (not_read && alarmEnabled == TRUE)
     {
-
+        // read supervision frame
         if (mode == SUPERVISION)
         {
-            if (read(fd, buf, 1)<=0){
+            if (read(fd, buf, 1) <= 0)
+            {
                 continue;
             }
-            // printf("%d\n", buf[0]);
 
             if (buf[0] == F && i == 0)
             {
@@ -52,7 +60,6 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
                 }
                 flags[2] = control_byte[index];
                 i++;
-       
             }
             else if ((buf[0] == (control_byte[index] ^ A)) && (flags[2] == control_byte[index]) && (i == 3))
             {
@@ -67,6 +74,7 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
                 i = 0;
             }
         }
+        // read information frame
         else if (mode == INFORMATION)
         {
 
@@ -74,7 +82,6 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
             {
                 continue;
             }
-            // printf("%d\n", buf[0]);
 
             if (buf[0] == F && i == 0)
             {
@@ -122,6 +129,13 @@ int read_frame_header(int fd, char *control_byte, char *frame, int mode)
     return -1;
 }
 
+/**
+ * @brief  Closes the file descriptor
+ *
+ * @param fd
+ * @param oldtio
+ * @return int
+ */
 int closeNonCanonical(int fd, struct termios *oldtio)
 {
     sleep(1);
@@ -138,6 +152,12 @@ int closeNonCanonical(int fd, struct termios *oldtio)
     return 0;
 }
 
+/**
+ * @brief Opens the file descriptor
+ *
+ * @param serialPort
+ * @return int
+ */
 int openNonCanonical(char serialPort[50])
 {
     int fd = open(serialPort, O_RDWR | O_NOCTTY | O_NONBLOCK);
@@ -186,7 +206,14 @@ int openNonCanonical(char serialPort[50])
     return fd;
 }
 
-char bcc_2(char* arr, int n)
+/**
+ * @brief Calculates BCC2
+ *
+ * @param arr
+ * @param n
+ * @return char
+ */
+char bcc_2(char *arr, int n)
 {
     unsigned char bcc2 = arr[0];
 
@@ -198,6 +225,15 @@ char bcc_2(char* arr, int n)
     return bcc2;
 }
 
+/**
+ * @brief Create a Frame
+ *
+ * @param frame
+ * @param controlByte
+ * @param data
+ * @param length
+ * @return int
+ */
 int createFrame(char *frame, int controlByte, char *data, unsigned int length)
 {
     frame[0] = F;
@@ -211,16 +247,24 @@ int createFrame(char *frame, int controlByte, char *data, unsigned int length)
     }
 
     frame[length + 4] = bcc_2(data, length);
-    //printf("BBC2:%d\n", bcc_2(data, length));
     frame[length + 5] = F;
 
     return 0;
 }
 
+/**
+ * @brief  Applies byte stuffing to the Data Characters of a frame
+ *
+ * @param frame
+ * @param controlByte
+ * @param data
+ * @param length
+ * @return int
+ */
 int byteStuffing(char *frame, int length)
 {
 
-    // allocates space for auxiliary buffer (length of the packet, plus 6 bytes for the frame header and tail)
+    // Auxiliary buffer -> length of the packet, plus 6 bytes for the frame header and tail
     unsigned char bufferAux[length + 6];
 
     // passes information from the frame to aux
@@ -230,7 +274,7 @@ int byteStuffing(char *frame, int length)
     }
 
     int currentPos = DATA_BEGIN;
-    // parses aux buffer, and fills in correctly the frame buffer
+    // parses aux buffer and fills the frame buffer
     for (int i = DATA_BEGIN; i < (length + 6); i++)
     {
         if (bufferAux[i] == F && i != (length + 5))
@@ -255,13 +299,20 @@ int byteStuffing(char *frame, int length)
     return currentPos;
 }
 
+/**
+ * @brief  Reverses the byte stuffing
+ *
+ * @param frame
+ * @param length
+ * @return int
+ */
 int byteDestuffing(char *frame, int length)
 {
 
-    // allocates space for the maximum possible frame length read (length of the data packet + bcc2, already with stuffing, plus the other 5 bytes in the frame)
+    // length of the data packet + bcc2 already with stuffing and the other 5 bytes in the frame
     unsigned char aux[length + 5];
 
-    // copies the content of the frame (with stuffing) to the aux frame
+    // iterates through the aux buffer and fills the frame buffer (destuffed)
     for (int i = 0; i < (length + 5); i++)
     {
         aux[i] = frame[i];
@@ -296,17 +347,37 @@ int byteDestuffing(char *frame, int length)
     return currentPos;
 }
 
+/**
+ * @brief  Converts two values from hexadecimal into one single decimal
+ *
+ * @param l1
+ * @param l2
+ * @return int
+ */
 int getOctectsNumber(int l1, int l2)
 {
     return 256 * l2 + l1;
 }
 
+/**
+ * @brief Converts a decimal value into twovalues for hexadecimal
+ *
+ * @param fileSize
+ * @param l1
+ * @param l2
+ */
 void getOctets(int fileSize, int *l1, int *l2)
 {
     *l1 = fileSize % 256;
     *l2 = fileSize / 256;
 }
 
+/**
+ * @brief Get the File Size
+ *
+ * @param fp
+ * @return int
+ */
 int getFileSize(FILE *fp)
 {
 
