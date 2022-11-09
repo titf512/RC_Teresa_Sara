@@ -8,7 +8,12 @@
 #define TRUE 1
 
 
-// Alarm function handler
+
+/**
+ * @brief Alarm function handler
+ *
+ * @param signal
+ */
 void alarmHandler(int signal)
 {
     alarmEnabled = FALSE;
