@@ -22,6 +22,7 @@ volatile int STOP = FALSE;
 #define _POSIX_SOURCE 1 // POSIX compliant source
 
 LinkLayer linkLayer;
+int sequenceNr = 0;
 
 ////////////////////////////////////////////////
 // LLOPEN
@@ -176,6 +177,11 @@ int llwrite(int fd, char *buf, int bufSize)
         }
         sleep(1);
 
+        if(alarmCount==NUM_RETR){
+            printf("NUMBER OF RETRIES EXCEEDED");
+            return -1;
+        }
+
         if (controlByteReceived == 0)
             dataSent = TRUE;
     }
@@ -200,8 +206,6 @@ int llwrite(int fd, char *buf, int bufSize)
 ////////////////////////////////////////////////
 // LLREAD
 ////////////////////////////////////////////////
-int sequenceNr = 0;
-
 int llread(unsigned char *packet, int fd)
 {
     int frameSize;
@@ -381,6 +385,12 @@ int llclose(int fd)
                 alarm(0);
                 break;
             }
+        }
+
+        if (alarmCount == NUM_RETR)
+        {
+            printf("NUMBER OF RETRIES EXCEEDED");
+            return -1;
         }
 
         sleep(1);
